@@ -504,8 +504,6 @@ saf_from_gff3<-function(gffFile, outFile, forceOverwrite=FALSE, features=c("gene
 #' @examples
 #' test_gff3<-system.file("extdata", "AthSmall.gff3", package="Rgff")
 #' plot_features(test_gff3)
-#' plot_features(test_gff3, outFile="AthSmall.gff3.png")
-#' unlink("AthSmall.gff3.png")
 
 plot_features<- function(inFile, outFile, includeCounts=FALSE, fileType=c("AUTO","GFF3","GTF"), exportFormat=c("png","pdf","svg")){
 	if (!requireNamespace("DiagrammeR", quietly = TRUE)) {    
@@ -1307,9 +1305,10 @@ get_pairs_from_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), f
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' test_gtf<-system.file("extdata", "AthSmall.gtf", package="Rgff")
 #' gtf_to_gff3(test_gtf)
-
+#' }
 gtf_to_gff3<-function(gtfFile, outFile, forceOverwrite=FALSE){
 
 	if (!requireNamespace("rtracklayer", quietly = TRUE)) {    
