@@ -1,0 +1,362 @@
+---
+title: "Using Rgff"
+author: "Juan Antonio Garcia-Martin, Juan Carlos Oliveros, Rafael Torres-Perez"
+date: "`r format(Sys.time(), '%d/%m/%Y')`"
+output:
+  html_document:
+    theme: united
+    toc: yes
+    toc_depth: 2
+  pdf_document:
+    toc: yes
+    toc_depth: 2
+always_allow_html: true
+vignette: >
+  %\VignetteIndexEntry{Using Rgff}
+  \usepackage[utf8]{inputenc}
+  %\VignetteEngine{knitr::rmarkdown}
+---
+# 0. About Rgff
+
+**Rgff** is a R package that provides some useful tools to retrieve statistical and hierarchical information contained in gff files, either *general feature format* (GFF3) or *gene transfer format* (GTF) formatted files[^1]. GFF3 and GTF are the most widely used data formats for genomic annotations. 
+**Rgff** also holds some other interesting utilities, like convert the GTF files to the currently recommended GFF3 format, check if a gff file is correctly formatted or generate SAF files from gff files. If you are not familiar with GFF3/GTF formats, please access [this](https://www.ensembl.org/info/website/upload/gff.html), [this](http://gmod.org/wiki/GFF3) or [this](https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md) link for a detailed information.
+
+[^1]: <font size="2">*GTF format is in fact equivalent to GFF version 2, so we use "gff" in this document as a global name to refer any of both formats, GTF or GFF3*</font>
+
+In summary, with **Rgff** you can:
+
+    * Verify if the format and feature ordering of your gff file is correct
+    * Obtain relevant stats of the content of your gff file
+    * Extract the feature structure of a gff file and export this hierarchy in a graphical chart
+    * Sort an unsorted gff file
+    * Convert a gff file into a SAF-formatted file
+    * Convert a GTF file to GFF3
+
+# 1. Check the consistency and order of a gff file {#check}
+
+Let's suppose that we are interested in obtaining diverse information (stats, feature structure) that is contained in a given gff file. First, we would like to check if the file meet the conventions of a particular gff format.
+
+We start loading the package:
+
+```{r}
+##============================================================================##
+## A    Load the library
+##============================================================================##
+library(Rgff)
+```
+
+As a first example, we load a GFF3 example file provided in the package named *AthSmall.gff3*:
+
+```{r}
+##============================================================================##
+## B    Load first example data
+##============================================================================##
+
+dir <- system.file("extdata", package="Rgff")
+gffFile1 <- file.path(dir,"AthSmall.gff3")
+
+```
+
+and now we check if the file is correctly GFF3-formatted:
+
+```{r message=FALSE, warning=FALSE}
+##============================================================================##
+## C    Check the consistency and order of the gff file 
+##============================================================================##
+
+check_gff(gffFile1)
+
+```
+
+No errors returned. Right! This file meets the requirements of a well-formatted GFF3 file. Now, let's move on to a second example, also provided in our package:
+
+```{r}
+##============================================================================##
+## D    Load and check second example data
+##============================================================================##
+
+gffFile2 <- file.path(dir,"eden.gff3")
+
+check_gff(gffFile2)
+
+```
+
+In this second example, *check_gff* finds an error in the order of the features. 
+
+Let's see the problem:
+
+```{r}
+
+# read the first lines of "eden.gff3" file
+head(read.table(gffFile2,sep="\t",header=FALSE), n=7L)
+```
+
+As *check_gff* indicated, the file is not well sorted by coordinates: the exon in line 7 has a start position (*1050*) that is lower that the start position (*1300*) of the mRNA in line 6. 
+
+In section [4](#sort) we will see how to fix this issue using another function (*sort_gff*) provided by **Rgff**.
+
+# 2. Getting the stats
+
+Let's suppose that we are interested in obtaining the names of the features present in the first GFF3 example file, the number of items by feature and the average, maximum and minimum size of each feature.
+
+We can use *gff_stats* to obtain these statistics:
+
+```{r}
+##============================================================================##
+## E    Obtain the stats of the gff file
+##============================================================================##
+gff_stats(gffFile1)
+```
+
+As it can be seen in the report, this gff file contains 14 feature types: *chromosome*, *CDS*, *exon*, *5'UTR*, *gene*, etc. For instance, there are 23 *exons* in this simple gff. This set of exons have an average length 305, with a minimum length 35 and maximum length 1034.
+
+We can now store the stats in a file:
+
+```{r eval=FALSE}
+gffFile1Stats <- gff_stats(gffFile1)
+
+write.table(gffFile1Stats, file="gffFile1Stats.txt",row.names = FALSE)
+```
+
+Our package provides the function *gff_stats_by_chr* in order to obtain a similar statistical summary but dissaggregated by chromosome:
+
+```{r}
+##============================================================================##
+## F    Obtain the stats of the gff file, disaggregated by chromosome
+##============================================================================##
+print(gff_stats_by_chr(gffFile1), n=50)
+```
+
+# 3. Extracting the feature organization of the gff file
+
+**Rgff** allows to extract the hierarchical feature organization of a gff file showing the dependency between the features. The *get_features* function provides an output displaying this structure in form of a dependence tree by default:
+
+```{r}
+##============================================================================##
+## G    Extract the feature organization of the gff file as a tree
+##============================================================================##
+get_features(gffFile1)
+
+```
+
+As it is shown, the highest features (nodes) in the gff are *chromosome*, *gene* and *ncRNA_gene* (non-coding RNA gene). Taking for example the *gene* node, we see that it has a child node, the *mRNA* feature. Depending from *mRNA* there are four child features, that are siblings from each other: *CDS*, *exon*, *five_prime_UTR* and *three_prime_UTR*.
+
+You can obtain a more graphical view of the dependency structure of the features. Export the tree into a plot using the *plot_features* function. Note that you will need to install and load previously the R package **DiagrammeR** to use this function:
+
+```{r out.height="100%", out.width="100%", message=FALSE, warning=FALSE}
+##============================================================================##
+## H    Plot the dependency tree of the gff file
+##============================================================================##
+
+#install DiagrammeR if you do not have it installed (you need to do this only once)
+# install.packages("DiagrammeR")
+
+#load DiagrammeR
+library("DiagrammeR")
+
+#plot the features tree
+plot_features(gffFile1)
+```
+
+The number of occurrences of each feature type present in the file can be added to each feature name in the plot using the $includeCounts = TRUE$ parameter.
+
+```{r out.height="100%", out.width="100%"}
+##=================================================================================##
+## I  Plot the dependency tree of the gff file in PNG format (default format)
+##    and include the number of items of each feature
+##=================================================================================##
+
+plot_features(gffFile1, includeCounts = TRUE)
+```
+
+The plot with the hierarchical structure of features is saved into a file in $png$ by default. $pdf$ or $svg$ formats are also allowed by adding the chosen format in the $exportFormat$ parameter of **plot_features** function and setting the output file path.
+
+```{r, results=FALSE, message=FALSE, warning=FALSE}
+##=================================================================================##
+## J  Plot the dependency tree of the gff file in PDF format 
+##=================================================================================##
+
+# get the plot in a PDF file
+outPlot1 <- file.path(dir,"treeplot_from_gff3_file.pdf")
+plot_features(gffFile1, outPlot1, exportFormat = "pdf", includeCounts = FALSE)
+
+```
+
+For the $svg$ export format you will need to have the packages **DiagrammeRsvg** and **rsvg** installed in addition.
+
+```{r results=FALSE, message=FALSE, warning=FALSE, eval=FALSE}
+
+# installing and loading the required packages for svg format
+# install.packages("DiagrammeRsvg")
+# install.packages("rsvg")
+
+library("DiagrammeRsvg")
+library("rsvg")
+
+# get the plot in a svg file
+outPlot2 <- file.path(dir,"outplot_from_gff3.svg")
+plot_features(gffFile1, outPlot2, exportFormat = "svg", includeCounts = TRUE)
+
+```
+
+Besides as a tree, **Rgff** provides two more optional formats to output the feature structure:
+
+-   As a dataframe:
+
+```{r message=FALSE, warning=FALSE}
+##============================================================================##
+## K    Extract the feature organization of the gff file in data.frame format
+##============================================================================##
+get_features(gffFile1, outFormat = 'data.frame', includeCounts = TRUE)
+
+```
+
+-   As JSON:
+
+```{r message=FALSE, warning=FALSE}
+##=================================================================================##
+## L    Extract the feature organization of the gff as JSON
+##=================================================================================##
+gffFile1_json_features <- get_features(gffFile1, outFormat = 'JSON')
+strsplit(gffFile1_json_features,"\\n");
+
+```
+
+# 4. Sorting gff files {#sort}
+
+Many operations involving gff files, from indexing to browsing, require the gff to be sorted. In a well structured gff file, all the children features always follow their parents in a single chunk (for example, all exons of a transcript are put after their parent "transcript" feature line and before any other "transcript" line). The function *sort_gff* produces a well-structured sorted gff file from a gff input file that is ill-structured/unsorted.
+
+By default, *sort_gff* generates a sorted file named as the input file (without extension) plus the suffix ".sorted.gff3" or ".sorted.gtf" depending if the input is a GFF3 or GTF file.
+
+In previous section [1](#check), we checked a GFF3 file (*eden.gff3*) that turned out to be incorrectly ordered. We can now sort this file and see if the new ordered file pass the "correctness" validation.
+
+```{r message=FALSE, warning=FALSE}
+##=================================================================================##
+## M  Sort an unsorted gff file
+##=================================================================================##
+
+#sorts the unsorted file gffFile2 (eden.gff3)
+gffFile2_sorted <- sort_gff(gffFile2)
+
+# check if the sorted file is well-formatted
+check_gff(gffFile2_sorted)
+
+# let's take a look to the sorted file
+head(read.table(gffFile2_sorted,sep="\t"), n=10L)
+
+```
+
+Indeed, *sort_gff* has produced a sorted file that is correctly ordered by coordinates and this new file meets now all the criteria of a well-formatted GFF3 file, as indicated by *check_gff*.
+
+# 5. Convert a gff file to a SAF file
+
+The *"simplified annotation format"* (SAF) is a format that is used by the *featureCounts* function of the **Rsubread** R package as an alternative to GFF3/GTF formats. It also contains information about the feature types needed to quantify reads generated from either RNA or DNA sequencing technologies. It is simpler than gff formats and includes only five required tab-delimited columns for each feature: feature identifier, chromosome name, start position, end position and strand. As in the case of the GTF format, features sharing the same feature identifier are taken to belong to the same "group-by" feature ("meta-feature", in the Rsubread nomenclature). To obtain more information of the package **featureCounts** and a description of the SAF format see: <https://www.rdocumentation.org/packages/Rsubread/versions/1.22.2/topics/featureCounts>.
+
+**Rgff** provides a function to convert a gff file to SAF format, *saf_from_gff*. This function requires to have the package **rtracklayer** previously installed (see <https://bioconductor.org/packages/release/bioc/html/rtracklayer.html>)
+
+For example, the simplest use of this function would be to obtain a SAF compiling only the lines of the GFF3 that refers the feature "gene". For that, you only need to put this feature name in the vector required by the *features* parameter:
+
+```{r message=FALSE, warning=FALSE}
+
+##============================================================================##
+## N    Convert a gff file to SAF format, only the "gene" feature
+##============================================================================##
+
+safFileConverted <- saf_from_gff(gffFile1, features = c("gene"))
+
+read.table(safFileConverted,sep="\t",header=TRUE)
+
+```
+
+You can compile in a SAF the intervals belonging to more than one feature by adding all the feature names of interest to the *features* vector. For example, for "gene" plus "ncRNA-gene":
+
+```{r message=FALSE, warning=FALSE}
+
+##================================================================================##
+## O    Convert a gff file to SAF format, both "gene" and "ncRNA_gene" features
+##================================================================================##
+
+safFileConverted2 <- saf_from_gff(gffFile1, features = c("gene","ncRNA_gene"))
+
+read.table(safFileConverted2,sep="\t",header=TRUE)
+
+```
+
+Some features, like "gene", are constructs that have constituent sub-features underneath. We name these sub-features "blocks". All the blocks belonging to a particular meta-feature share the same feature ID. With *saf_from_gff* you can extract a SAF containing the information of a particular block type for each meta-feature type. A usual example is to get all the exons grouped by their corresponding genes (genes would be the "group_by" or "meta-feature" in this case). Use the notation $(group\_by\_feature > block\_feature)$ in the *features* parameter vector to achieve this grouping in the resulting SAF file:
+
+```{r message=FALSE, warning=FALSE}
+##============================================================================##
+## P    Convert a gff file to SAF format, compiling "exons by gene"
+##============================================================================##
+
+safFileConverted3 <- saf_from_gff(gffFile1, features = c("gene > exon"))
+
+read.table(safFileConverted3,sep="\t",header=TRUE)
+
+```
+
+As it is shown in the output, the first line contains the annotation of an exon belonging a gene (indicated in the column "Note" by the expression *exon-\>gene*) named AT1G01010. This exon sits on chromosome 1, from position 3631 to 3913. Lines 1 to 6 share the same GeneID and group all the exons that depend on that gene (AT1G01010).
+
+$c(\texttt{"gene > exon"})$ is the default value of the *features* parameter, so you don't need to make it explicit:
+
+```{r message=FALSE, warning=FALSE}
+
+safFileConverted4 <- saf_from_gff(gffFile1)
+
+```
+
+You can use other separator character distinct from "\>" between group_by feature and block feature, by declaring the alternative separator with the *sep* parameter. For example:
+
+```{r message=FALSE, warning=FALSE}
+
+safFileConverted5 <- saf_from_gff(gffFile1, features = c("gene : exon"), sep = ':')
+
+```
+
+You may be interested in compiling more than a pair "group_by feature \> block feature" in one single SAF file. To do that, you should write, separated by comma, all the pairs in the vector of the parameter *feature*. In the example below, we obtain a new SAF containing both "exons by genes" ($gene > exon$) and "exons by non-coding genes" ($ncRNA\_gene > exon$):
+
+```{r message=FALSE, warning=FALSE}
+
+##==============================================================================##
+## Q    Convert a gff file to SAF format, compiling "exons by gene"  
+##      and "exons by non-coding RNA genes"
+##==============================================================================##
+
+safFileConverted6 <- saf_from_gff(gffFile1, features = c("gene > exon","ncRNA_gene > exon"))
+
+read.table(safFileConverted6,sep="\t",header=TRUE)
+
+```
+
+# 6. Convert a GTF to a GFF3 file
+
+Even today it is not uncommon to find gene feature files in the older GTF format instead of the currently recommended GFF3 format. Our package admits files in GTF format as input for all the described functions: check_gff, get_features, gff_stats, gff_stats_by_chr, sort_gff and saf_from_gff.
+
+As a supplementary functionality, **Rgff** provides a function, *gtf_to_gff3* to perform the conversion from the . This way, in the case you are provided with a file GTF-formatted you can still make use of the functionalities of **Rgff** by previously converting that GTF to a GFF3-formatted file.
+
+For example, let's convert the example GTF file *AthSmall.gtf* (provided in our package) to a GFF3 file:
+
+```{r message=FALSE, warning=FALSE}
+##============================================================================##
+## R    Convert from GTF to GFF3
+##============================================================================##
+
+# load and show our example GTF file
+gtfFile1 <- file.path(dir,"AthSmall.gtf")
+head(read.table(gtfFile1,sep="\t"))[,1:8]
+
+```
+
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+
+# convert the GTF format to GFF3 format
+gffFileConverted <- gtf_to_gff3(gtfFile1, forceOverwrite = TRUE)
+
+
+```
+
+```{r message=FALSE, warning=FALSE}
+# show the results of the conversion
+head(read.table(gffFileConverted,sep="\t"))[,1:8]
+
+```
