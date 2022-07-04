@@ -12,7 +12,7 @@ sort_gff(
 )
 }
 \arguments{
-\item{inFile}{Path to the input gff file}
+\item{inFile}{Path to the input GFF file}
 
 \item{outFile}{Path to the output sorted file, if not provided the output will be the input path (without extension) with the suffix sorted.gtf/gff3}
 
@@ -24,7 +24,7 @@ sort_gff(
 Path to the sorted feature file
 }
 \description{
-This function produces a sorted gff file from an unsorted gff file.
+This function produces a sorted GFF file from an unsorted GFF file.
 The default order is by Chromosome, Start, End (reverse) and feature (based on the precedency in feature tree)
 }
 \examples{

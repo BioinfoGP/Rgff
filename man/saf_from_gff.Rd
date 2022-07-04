@@ -14,7 +14,7 @@ saf_from_gff(
 )
 }
 \arguments{
-\item{inFile}{Path to the input gff file}
+\item{inFile}{Path to the input GFF file}
 
 \item{outFile}{Path to the output SAF file, if not provided the output path will be the input path with the suffix ".feature1-block1.feature2-block2(...).saf"}
 

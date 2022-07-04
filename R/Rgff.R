@@ -10,7 +10,7 @@
 
 get_pairs_from_gff3<-function(gffFile, outFile, forceOverwrite=FALSE){
 	if (!base::file.exists(gffFile)) { 
-		stop(paste0("Input gff3 file ",gffFile," not found."))
+		stop(paste0("Input GFF3 file ",gffFile," not found."))
 	}
 
 	if(missing(outFile)){
@@ -90,7 +90,7 @@ get_pairs_from_gff3<-function(gffFile, outFile, forceOverwrite=FALSE){
 #' @keywords internal
 gff3_to_paths<-function(gffFile, outFile, forceOverwrite=FALSE){ 
 	if (!base::file.exists(gffFile)) { 
-		stop(paste0("Input gff3 file ",gffFile," not found."))
+		stop(paste0("Input GFF3 file ",gffFile," not found."))
 	}
 
 	if(missing(outFile)){
@@ -310,12 +310,12 @@ saf_from_paths<-function(pathsFile,groupBy=c("mRNA","gene"),block=c("exon","CDS"
 }
 
 
-#' Summarizes the number of elements of each type in each chromosome of a gff file
+#' Summarizes the number of elements of each type in each chromosome of a GFF file
 #'
 #' This function summarizes the number of features of each type in each chromosome  
-#' of a gff file and returns the statistics
+#' of a GFF file and returns the statistics
 #'
-#' @param inFile Path to the input gff file
+#' @param inFile Path to the input GFF file
 #' @return A tibble with the summary data
 #'
 #' @importFrom rlang .data
@@ -346,12 +346,12 @@ gff_stats_by_chr <-function(inFile) {
 }
 
 
-#' Summarizes the number of features of each type in a gff file
+#' Summarizes the number of features of each type in a GFF file
 #'
 #' This function summarizes the number of features of each type in  
-#' a gff file and returns the statistics
+#' a GFF file and returns the statistics
 #'
-#' @param inFile Path to the input gff file
+#' @param inFile Path to the input GFF file
 #' @return A tibble with the summary data
 #'
 #' @importFrom rlang .data
@@ -486,13 +486,13 @@ saf_from_gff3<-function(gffFile, outFile, forceOverwrite=FALSE, features=c("gene
 }	
 
 
-#' Plots or exports an image of the feature tree from a gff file
+#' Plots or exports an image of the feature tree from a GFF file
 #'
-#' This function plots the feature tree from a gff file or, if an output file name is provided, 
+#' This function plots the feature tree from a GFF file or, if an output file name is provided, 
 #' exports an image of in the desired format ("png", "pdf" or "svg"). 
 #' Packages "DiagrammeR", "DiagrammeRsvg" and "rsvg" must be installed to use this function.
 #'
-#' @param inFile Path to the input gff file 
+#' @param inFile Path to the input GFF file 
 #' @param outFile Path to the output features image file, if not provided the tree will be plotted
 #' @param includeCounts Include number of occurrences of each subfeature 
 #' @param fileType Version of the input file (GTF/GFF3). If not provided it will be determined from the file name.
@@ -514,7 +514,7 @@ plot_features<- function(inFile, outFile, includeCounts=FALSE, fileType=c("AUTO"
 	exportFormat <- match.arg(fileType)
 
 	if (!base::file.exists(inFile)) { 
-		stop(paste0("Input gff file ",inFile," not found."))
+		stop(paste0("Input GFF file ",inFile," not found."))
 	}
 	detectedExt<-tools::file_ext(inFile)
 
@@ -526,7 +526,7 @@ plot_features<- function(inFile, outFile, includeCounts=FALSE, fileType=c("AUTO"
 			fileExt=tolower(detectedExt)
 			fileType = "GFF3"			
 		} else {
-			message(paste0("Unknown file type", detectedExt,": Defaulting to gff3"))
+			message(paste0("Unknown file type", detectedExt,": Defaulting to GFF3"))
 			fileExt="gff3"		
 			fileType = "GFF3"				
 		}
@@ -585,9 +585,9 @@ plot_features<- function(inFile, outFile, includeCounts=FALSE, fileType=c("AUTO"
 
 
 
-#' Analyses the feature type hierarchy of a gff file 
+#' Analyses the feature type hierarchy of a GFF file 
 #'
-#' Based on the feature type hierarchy a gff file, this function creates and returns 
+#' Based on the feature type hierarchy a GFF file, this function creates and returns 
 #' a feature tree or a feature dependency table. 
 #'
 #' @param inFile Path to the input GTF/GFF3 features  file 
@@ -684,7 +684,7 @@ get_features<- function(inFile, includeCounts=FALSE, outFormat=c("tree", "data.f
 #' @keywords internal
 sort_gff3<-function(gffFile, outFile, forceOverwrite=FALSE){
 	if (!base::file.exists(gffFile)) { 
-		stop(paste0("Input gff3 file ",gffFile," not found."))
+		stop(paste0("Input GFF3 file ",gffFile," not found."))
 	}
 
 	if(missing(outFile)){
@@ -1037,10 +1037,10 @@ sort_gtf<-function(gtfFile, outFile, forceOverwrite=FALSE){
 
 #' Sorts a GTF/GFF3 file
 #'
-#' This function produces a sorted gff file from an unsorted gff file.
+#' This function produces a sorted GFF file from an unsorted GFF file.
 #' The default order is by Chromosome, Start, End (reverse) and feature (based on the precedency in feature tree)
 #'
-#' @param inFile Path to the input gff file
+#' @param inFile Path to the input GFF file
 #' @param outFile Path to the output sorted file, if not provided the output will be the input path (without extension) with the suffix sorted.gtf/gff3
 #' @param fileType Version of the input file (GTF/GFF3). Default AUTO: determined from the file name.
 #' @param forceOverwrite If output file exists, overwrite the existing file. (default FALSE)
@@ -1069,7 +1069,7 @@ sort_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), forceOverwr
 			fileExt=tolower(detectedExt)
 			fileType = "GFF3"			
 		} else {
-			message(paste0("Unknown file type", detectedExt,": Defaulting to gff3"))
+			message(paste0("Unknown file type", detectedExt,": Defaulting to GFF3"))
 			fileExt="gff3"		
 			fileType = "GFF3"				
 		}
@@ -1102,7 +1102,7 @@ sort_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), forceOverwr
 #' This function creates a SAF file from a GTF/GFF3 features for the given blocks 
 #' and features
 #'
-#' @param inFile Path to the input gff file
+#' @param inFile Path to the input GFF file
 #' @param outFile Path to the output SAF file, if not provided the output path will be the input path with the suffix ".feature1-block1.feature2-block2(...).saf"
 #' @param fileType Version of the input file (GTF/GFF3). Default AUTO: determined from the file name.
 #' @param forceOverwrite If output file exists, overwrite the existing file. (default FALSE)
@@ -1137,7 +1137,7 @@ saf_from_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), forceOv
 			fileExt=tolower(detectedExt)
 			fileType = "GFF3"			
 		} else {
-			message(paste0("Unknown file type", detectedExt,": Defaulting to gff3"))
+			message(paste0("Unknown file type", detectedExt,": Defaulting to GFF3"))
 			fileExt="gff3"		
 			fileType = "GFF3"				
 		}
@@ -1234,11 +1234,11 @@ saf_from_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), forceOv
 }	
 
 
-#' Creates a features pair file from a gff file
+#' Creates a features pair file from a GFF file
 #'
-#' This function creates a features pair file from a gff file
+#' This function creates a features pair file from a GFF file
 #'
-#' @param inFile Path to the input gff file
+#' @param inFile Path to the input GFF file
 #' @param outFile Path to the output features pair file, if not provided the output will be inFile.pairs
 #' @param fileType Version of the input file (GTF/GFF3). Default AUTO: determined from the file name.
 #' @param forceOverwrite If output file exists, overwrite the existing file. (default FALSE)
@@ -1262,7 +1262,7 @@ get_pairs_from_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), f
 			fileExt=tolower(detectedExt)
 			fileType = "GFF3"			
 		} else {
-			message(paste0("Unknown file type", detectedExt,": Defaulting to gff3"))
+			message(paste0("Unknown file type", detectedExt,": Defaulting to GFF3"))
 			fileExt="gff3"		
 			fileType = "GFF3"				
 		}
@@ -1493,9 +1493,9 @@ gtf_to_gff3<-function(gtfFile, outFile, forceOverwrite=FALSE){
 	
 }
 
-#' Test consistency and order of a gff file
+#' Test consistency and order of a GFF file
 #'
-#' This function tests the consistency and order of a gff file.
+#' This function tests the consistency and order of a GFF file.
 #'
 #'  The following list indicates the code and description of the issues detected in GFF3 files
 #'  \describe{
@@ -1534,7 +1534,7 @@ gtf_to_gff3<-function(gtfFile, outFile, forceOverwrite=FALSE){
 #'  \item{NOT_VALID_ERROR}{File cannot be recognized as valid GTF. Parsing errors.}
 #'  }
 #' 
-#' @param inFile Path to the input gff file
+#' @param inFile Path to the input GFF file
 #' @param fileType Version of the input file (GTF/GFF3). Default AUTO: determined from the file name.
 #' @return A data frame of detected issues, including a short code name, a description and estimated severity each. In no issues are detected the function will return an empty data frame.
 #' 
@@ -1560,7 +1560,7 @@ check_gff<-function(inFile, fileType=c("AUTO","GFF3","GTF")){
 			fileExt=tolower(detectedExt)
 			fileType = "GFF3"			
 		} else {
-			message(paste0("Unknown file type", detectedExt,": Defaulting to gff3"))
+			message(paste0("Unknown file type", detectedExt,": Defaulting to GFF3"))
 			fileExt="gff3"		
 			fileType = "GFF3"				
 		}

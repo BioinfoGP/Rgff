@@ -1,0 +1,21 @@
+ELEMENT	PARENT	N
+CDS	mRNA	14
+exon	lnc_RNA	1
+exon	miRNA	1
+exon	mRNA	15
+exon	rRNA	1
+exon	snoRNA	1
+exon	snRNA	1
+exon	tRNA	3
+five_prime_UTR	mRNA	4
+lnc_RNA	ncRNA_gene	1
+miRNA	ncRNA_gene	1
+mRNA	gene	3
+rRNA	ncRNA_gene	1
+snoRNA	ncRNA_gene	1
+snRNA	ncRNA_gene	1
+three_prime_UTR	mRNA	3
+tRNA	ncRNA_gene	2
+chromosome		1
+gene		2
+ncRNA_gene		7

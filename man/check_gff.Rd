@@ -2,12 +2,12 @@
 % Please edit documentation in R/Rgff.R
 \name{check_gff}
 \alias{check_gff}
-\title{Test consistency and order of a gff file}
+\title{Test consistency and order of a GFF file}
 \usage{
 check_gff(inFile, fileType = c("AUTO", "GFF3", "GTF"))
 }
 \arguments{
-\item{inFile}{Path to the input gff file}
+\item{inFile}{Path to the input GFF file}
 
 \item{fileType}{Version of the input file (GTF/GFF3). Default AUTO: determined from the file name.}
 }
@@ -15,7 +15,7 @@ check_gff(inFile, fileType = c("AUTO", "GFF3", "GTF"))
 A data frame of detected issues, including a short code name, a description and estimated severity each. In no issues are detected the function will return an empty data frame.
 }
 \description{
-This function tests the consistency and order of a gff file.
+This function tests the consistency and order of a GFF file.
 }
 \details{
 The following list indicates the code and description of the issues detected in GFF3 files

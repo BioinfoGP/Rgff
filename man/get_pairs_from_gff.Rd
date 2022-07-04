@@ -2,7 +2,7 @@
 % Please edit documentation in R/Rgff.R
 \name{get_pairs_from_gff}
 \alias{get_pairs_from_gff}
-\title{Creates a features pair file from a gff file}
+\title{Creates a features pair file from a GFF file}
 \usage{
 get_pairs_from_gff(
   inFile,
@@ -12,7 +12,7 @@ get_pairs_from_gff(
 )
 }
 \arguments{
-\item{inFile}{Path to the input gff file}
+\item{inFile}{Path to the input GFF file}
 
 \item{outFile}{Path to the output features pair file, if not provided the output will be inFile.pairs}
 
@@ -24,6 +24,6 @@ get_pairs_from_gff(
 Path to the generated features pair file
 }
 \description{
-This function creates a features pair file from a gff file
+This function creates a features pair file from a GFF file
 }
 \keyword{internal}

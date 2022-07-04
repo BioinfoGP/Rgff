@@ -2,19 +2,19 @@
 % Please edit documentation in R/Rgff.R
 \name{gff_stats_by_chr}
 \alias{gff_stats_by_chr}
-\title{Summarizes the number of elements of each type in each chromosome of a gff file}
+\title{Summarizes the number of elements of each type in each chromosome of a GFF file}
 \usage{
 gff_stats_by_chr(inFile)
 }
 \arguments{
-\item{inFile}{Path to the input gff file}
+\item{inFile}{Path to the input GFF file}
 }
 \value{
 A tibble with the summary data
 }
 \description{
 This function summarizes the number of features of each type in each chromosome
-of a gff file and returns the statistics
+of a GFF file and returns the statistics
 }
 \examples{
 test_gff3<-system.file("extdata", "AthSmall.gff3", package="Rgff")

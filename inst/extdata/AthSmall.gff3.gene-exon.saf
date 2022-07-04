@@ -1,0 +1,14 @@
+GeneID	Chr	Start	End	Strand	Notes
+gene:AT1G01010	1	3631	3913	+	exon->gene
+gene:AT1G01010	1	3996	4276	+	exon->gene
+gene:AT1G01010	1	4486	4605	+	exon->gene
+gene:AT1G01010	1	4706	5095	+	exon->gene
+gene:AT1G01010	1	5174	5326	+	exon->gene
+gene:AT1G01010	1	5439	5899	+	exon->gene
+gene:AT1G01110	1	51953	52346	+	exon->gene
+gene:AT1G01110	1	52061	52730	+	exon->gene
+gene:AT1G01110	1	52434	52730	+	exon->gene
+gene:AT1G01110	1	52938	53183	+	exon->gene
+gene:AT1G01110	1	53484	53624	+	exon->gene
+gene:AT1G01110	1	53703	54689	+	exon->gene
+gene:AT1G01110	1	53703	54737	+	exon->gene

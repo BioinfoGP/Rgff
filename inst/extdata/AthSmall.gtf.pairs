@@ -1,0 +1,9 @@
+ELEMENT	PARENT	N
+CDS	transcript	14
+exon	transcript	23
+five_prime_utr	transcript	4
+gene		9
+start_codon	transcript	3
+stop_codon	transcript	3
+three_prime_utr	transcript	3
+transcript	gene	10

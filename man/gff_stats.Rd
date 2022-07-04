@@ -2,19 +2,19 @@
 % Please edit documentation in R/Rgff.R
 \name{gff_stats}
 \alias{gff_stats}
-\title{Summarizes the number of features of each type in a gff file}
+\title{Summarizes the number of features of each type in a GFF file}
 \usage{
 gff_stats(inFile)
 }
 \arguments{
-\item{inFile}{Path to the input gff file}
+\item{inFile}{Path to the input GFF file}
 }
 \value{
 A tibble with the summary data
 }
 \description{
 This function summarizes the number of features of each type in
-a gff file and returns the statistics
+a GFF file and returns the statistics
 }
 \examples{
 test_gff3<-system.file("extdata", "AthSmall.gff3", package="Rgff")

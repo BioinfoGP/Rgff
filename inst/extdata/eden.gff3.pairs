@@ -1,0 +1,6 @@
+ELEMENT	PARENT	N
+CDS	mRNA	13
+exon	mRNA	11
+mRNA	gene	3
+TF_binding_site	gene	1
+gene		1

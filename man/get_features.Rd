@@ -2,7 +2,7 @@
 % Please edit documentation in R/Rgff.R
 \name{get_features}
 \alias{get_features}
-\title{Analyses the feature type hierarchy of a gff file}
+\title{Analyses the feature type hierarchy of a GFF file}
 \usage{
 get_features(
   inFile,
@@ -24,7 +24,7 @@ get_features(
 Depending on the outFormat selected returns a feature tree (tree), a feature dependency table as data.frame (data.frame) or a feature dependency table as JSON object (JSON)
 }
 \description{
-Based on the feature type hierarchy a gff file, this function creates and returns
+Based on the feature type hierarchy a GFF file, this function creates and returns
 a feature tree or a feature dependency table.
 }
 \examples{

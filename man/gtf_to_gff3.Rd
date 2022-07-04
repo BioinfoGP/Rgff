@@ -22,6 +22,8 @@ defined by the gene_id and transcript_id attributes. The remaining attributes of
 will be kept with the same name and value.
 }
 \examples{
+\dontrun{
 test_gtf<-system.file("extdata", "AthSmall.gtf", package="Rgff")
 gtf_to_gff3(test_gtf)
+}
 }
