@@ -1,6 +1,6 @@
 ##gff-version 3
 ##source-version rtracklayer 1.54.0
-##date 2022-06-26
+##date 2022-07-19
 1	araport11	gene	3631	5899	.	+	.	ID=AT1G01010;
 1	araport11	transcript	3631	5899	.	+	.	ID=AT1G01010.1;Parent=AT1G01010
 1	araport11	exon	3631	3913	.	+	.	ID=exon_1;Parent=AT1G01010.1

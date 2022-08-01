@@ -104,99 +104,87 @@ gff3_to_paths<-function(gffFile, outFile, forceOverwrite=FALSE){
 			message ("Paths file for this GFF already exists. Use forceOverwrite=TRUE to overwrite the existing file."); 
 		}
 	}
-	myGFFdata<-readLines(gffFile)
 	message(paste0("Creating ",foutput," file for ",gffFile))
-	CommentPattern<-"(^#(.*)$)|(^#([\t ]*)$)|(^[\t ]*$)"
-	comment_lines<-grep(CommentPattern,myGFFdata,perl=T)
-	if(length(comment_lines)>0){
-		myGFFdata<-myGFFdata[-comment_lines]
+
+
+	cnames <- c("seqname","source","feature","start","end","score","strand","frame","attribute")
+	myGFFdata <- utils::read.delim(gffFile, header=F,  sep="\t", comment.char = "#", quote="", blank.lines.skip=T) %>%    `colnames<-`(cnames)  
+
+	idPattern<-"(^|;) *ID *= *([^;]+) *(;|$)"
+	idPatternFull<-"^(.*;)* *ID *= *([^;]+) *(;|$).*"
+
+
+	parentPattern<-"(^|;) *Parent *= *([^;]+) *(;|$)"
+	parentPatternFull<-"^(.*;)* *Parent *= *([^;]+) *(;|$).*"
+
+
+	selected_parentid_lines<-grep(parentPattern,myGFFdata[,"attribute"],perl=T,ignore.case=T)
+	selected_elemid_lines<-grep(idPattern,myGFFdata[,"attribute"],perl=T,ignore.case=T)
+
+	parentids<-rep(NA,nrow(myGFFdata))
+	elemids<-rep(NA,nrow(myGFFdata))
+
+	parentids[selected_parentid_lines]<-gsub(parentPatternFull,"\\2",myGFFdata[selected_parentid_lines,"attribute"],perl=T,ignore.case=T)
+	elemids[selected_elemid_lines]<-gsub(idPatternFull,"\\2",myGFFdata[selected_elemid_lines,"attribute"],perl=T,ignore.case=T)
+
+	elemids[elemids == ""] <- NA
+
+
+	fLevels<-unique(myGFFdata$feature)
+	featureCounter<-rep("",nrow(myGFFdata))
+	for (cf in fLevels){
+		fLines<-which(myGFFdata$feature == cf)
+		featureCounter[fLines]<-c(1:length(fLines))
 	}
 
-	ParentAndIDPattern<-"^([^\t]+)\t[^\t]+\t(([^\t]+\t){3})[^\t]+\t([^\t])+\t(.*)[\t;]ID *= *([^;]+)(.*);Parent *= *([^;]+)(.*)$"
-	parent_and_id_lines<-grep(ParentAndIDPattern,myGFFdata,perl=T,ignore.case=T)
-	parentIdPairs<-gsub(ParentAndIDPattern,"\\1\t\\2\\4\t\\6\t\\8",myGFFdata[parent_and_id_lines],perl=T,ignore.case=T)
 
-	IDAndParentPattern<-"^([^\t]+)\t[^\t]+\t(([^\t]+\t){3})[^\t]+\t([^\t])+\t(.*)[\t;]Parent *= *([^;]+)(.*);ID *= *([^;]+)(.*)$"
-	id_and_parent_lines<-grep(IDAndParentPattern,myGFFdata,perl=T,ignore.case=T)
-	if(length(id_and_parent_lines>0)){
-		IdparentPairs<-gsub(IDAndParentPattern,"\\1\t\\2\\4\t\\8\t\\6",myGFFdata[id_and_parent_lines],perl=T,ignore.case=T)
-		parentIdPairs<-c(parentIdPairs,IdparentPairs)
-		parent_and_id_lines<-c(parent_and_id_lines,id_and_parent_lines)
+	elemids[is.na(elemids)] <- paste0(myGFFdata[is.na(elemids),]$feature,":",myGFFdata[is.na(elemids),]$feature,featureCounter[is.na(elemids)])
+
+
+	
+	if(length(selected_parentid_lines) >0 && length(selected_parentid_lines) < length(parentids)){
+		parentids[-selected_parentid_lines] <- NA
+	}
+	
+	myGFFdata <- myGFFdata %>% dplyr::mutate(ID=elemids, ParentID=parentids)
+
+	
+
+	
+	
+	if(any(duplicated(unique(myGFFdata[,c("ID","seqname")])$ID))){
+		toRemoveDF<-unique(myGFFdata[,c("ID","seqname")])
+		toRemoveDF<-toRemoveDF[duplicated(toRemoveDF$ID),]
+		
+		repeatedIDs<-which(myGFFdata$ID %in% unique(toRemoveDF$ID))
+	
+		message(paste0("Warning, there are ",length(repeatedIDs), " rows with repeated IDs in different chromosomes. These elements and any reference to them will be removed in the conversion"))
+		repeatedIDList<-unique(elemids[repeatedIDs])
+		parentids[parentids %in% repeatedIDList] <- NA
+		myGFFdata <- myGFFdata[-repeatedIDs,]
+		elemids <- elemids[-repeatedIDs]
+		parentids <- parentids[-repeatedIDs]
+		
+		 
 	}
 
-	if(length(parentIdPairs)==0){
-		resParentID<-data.frame(Chr=character(),Feature=character(),Start=character(),End=character(),Strand=character(), ID=character(),ParentID=character())
-	} else {
-		vParentIdPairs<-unlist(strsplit(parentIdPairs,"\t"))
-		resParentID <- cbind.data.frame(split(vParentIdPairs, rep(1:7, times=length(vParentIdPairs)/7)), stringsAsFactors=F)
-		colnames(resParentID) <- c("Chr","Feature","Start","End","Strand", "ID","ParentID")
-		## CHECK FOR MULTIPLE PARENT OCCURRENCES
-		withMulti<-grep(",",resParentID$ParentID)
-		if(length(withMulti)>0){
-			newItems<- resParentID[withMulti,] %>% dplyr::mutate(ParentID = strsplit(as.character(.data$ParentID), ",")) %>% tidyr::unnest(.data$ParentID)
-			resParentID<-rbind(resParentID[-withMulti,],newItems)
-		}
-		resParentID<-resParentID[order(resParentID$ParentID),]
+	
+	FeatureIdAndParent<-data.frame(Feature=myGFFdata$feature,ID=elemids, ParentID=parentids)
+	
+	uniqueFeatureIdAndParent <- unique(FeatureIdAndParent %>% dplyr::group_by(.data$ID,.data$ParentID ))
+	
+	withMulti<-grep(",",uniqueFeatureIdAndParent$ParentID)
+	if(length(withMulti)>0){	
+		newItems<-do.call("rbind",lapply(withMulti,function(x){as.data.frame(t(sapply(strsplit(as.character(uniqueFeatureIdAndParent$ParentID[x]),",")[[1]],function(y){as.character(c(uniqueFeatureIdAndParent[x,"Feature"],uniqueFeatureIdAndParent[x,"ID"],y))})))}))
+		colnames(newItems) <- c("Feature", "ID", "ParentID")		
+		
+		uniqueFeatureIdAndParent<-rbind(uniqueFeatureIdAndParent[-withMulti,],newItems)
 	}
 
-	if(length(parent_and_id_lines)>0){
-		GFFdata<-myGFFdata[-parent_and_id_lines]
-	} else {
-		GFFdata<-myGFFdata
-	}
-	ParentPattern<-"^([^\t]+)\t[^\t]+\t(([^\t]+\t){3})[^\t]+\t([^\t])+\t(.*)[\t;]Parent *= *([^;]+)(.*)$"
 
-	parent_lines<-grep(ParentPattern,GFFdata,perl=T,ignore.case=T)
-	parentPairs<-gsub(ParentPattern,"\\1\t\\2\\4\t\\6",GFFdata[parent_lines],perl=T,ignore.case=T)
-	if(length(parentPairs)==0){
-		resParent<-data.frame(Chr=character(),Feature=character(),Start=character(),End=character(),Strand=character(), ParentID=character(),ID=character())
-	} else {
-		vParentPairs<-unlist(strsplit(parentPairs,"\t"))
-		resParent <- cbind.data.frame(split(vParentPairs, rep(1:6, times=length(vParentPairs)/6)), stringsAsFactors=F)
-		colnames(resParent) <- c("Chr","Feature","Start","End","Strand", "ParentID")
-		## CHECK FOR MULTIPLE PARENT OCCURRENCES
-		withMulti<-grep(",",resParent$ParentID)
-		if(length(withMulti)>0){
-			newItems<-do.call("rbind",lapply(withMulti,function(x){as.data.frame(t(sapply(strsplit(as.character(resParent$ParentID[x]),",")[[1]],function(y){as.character(c(resParent[x,-6],y))})))}))
-			colnames(newItems) <- c("Chr","Feature","Start","End","Strand", "ParentID")
-			resParent<-rbind(resParent[-withMulti,],newItems)
-		}
-		resParent<-resParent[order(resParent$ParentID),]
-
-		resParent$ID<-paste0(resParent$Feature,":",rownames(resParent))
-	}
-	if(length(parent_lines)>0){
-		GFFdata<-GFFdata[-parent_lines]
-	}
-
-	idPattern<-"^([^\t]+)\t[^\t]+\t(([^\t]+\t){3})[^\t]+\t([^\t])+\t(.*)[\t;]ID *= *([^;]+)(.*)$"
-	selected_lines<-grep(idPattern,GFFdata,perl=T,ignore.case=T)
-	idPairs<-gsub(idPattern,"\\1\t\\2\\4\t\\6",GFFdata[selected_lines],perl=T,ignore.case=T)
-	if(length(idPairs)==0){
-		resID<-data.frame(Chr=character(),Feature=character(),Start=character(),End=character(),Strand=character(), ID=character(),ParentID=character())
-	} else {
-		vIdPairs<-unlist(strsplit(idPairs,"\t"))
-		resID <- cbind.data.frame(split(vIdPairs, rep(1:6, times=length(vIdPairs)/6)), stringsAsFactors=F)
-		colnames(resID) <- c("Chr","Feature","Start","End","Strand", "ID")
-
-		resID$ParentID<-rep("",nrow(resID))
-	}
-	if(length(selected_lines)>0){
-		if(length(GFFdata[-selected_lines])>0){
-			message(paste0("There are ",length(GFFdata[-selected_lines])," remaining elements in the GFF file"))
-		}
-	} else {
-		if(length(GFFdata)>0){
-			message(paste0("There are ",length(GFFdata)," remaining elements in the GFF file"))
-		}
-	}
-	finalColumns<-c("Chr","Feature","Start","End","Strand", "ID","ParentID")
-
-
-	fullData<-rbind(resParentID[,c("Feature","ID","ParentID")],resParent[,c("Feature","ID","ParentID")],resID[,c("Feature","ID","ParentID")])
-
-	mergedDF<-rbind(resParentID[,finalColumns],resParent[,finalColumns],resID[,finalColumns])
-	colnames(mergedDF)<-c(finalColumns)
+	mergedDF<-data.frame(Chr=myGFFdata$seqname,Start=myGFFdata$start,End=myGFFdata$end,Strand=myGFFdata$strand,Feature=myGFFdata$feature, ID=elemids)
+	
+	mergedDF <- mergedDF %>% dplyr::left_join(y = uniqueFeatureIdAndParent, by = c("ID","Feature"),na_matches="never")
 
 	counter<-""
 	while(any(!is.na(mergedDF[,paste0("ParentID",counter)]) & (mergedDF[,paste0("ParentID",counter)]!=""))){
@@ -207,7 +195,14 @@ gff3_to_paths<-function(gffFile, outFile, forceOverwrite=FALSE){
 		}
 
 		# print(paste0("Checking level ",nextCounter))
-		mergedDF<-merge(x = mergedDF, y = fullData, by.x = paste0("ParentID",counter), by.y = "ID", all.x = TRUE,suffixes=c("",as.character(nextCounter)))
+
+		varJoin<-paste0("ParentID",counter)
+		joinExp= c("ID")
+		names(joinExp) <- varJoin
+		mergedDF <- mergedDF %>% dplyr::left_join(y = uniqueFeatureIdAndParent, by = joinExp, suffix=c("",as.character(nextCounter)),na_matches="never")
+		if(FALSE){
+			mergedDF<-merge(x = mergedDF, y = fullData, by.x = paste0("ParentID",counter), by.y = "ID", all.x = TRUE,suffixes=c("",as.character(nextCounter)))
+		}
 		counter<-nextCounter
 		repeatedIDs<-which(!is.na(mergedDF[,paste0("ParentID",counter)]) & (mergedDF[,paste0("ParentID",counter)]!="") & (mergedDF[,paste0("ParentID",counter)]==mergedDF[,"ParentID"]))
 		if(length(repeatedIDs) >0){
@@ -226,6 +221,9 @@ gff3_to_paths<-function(gffFile, outFile, forceOverwrite=FALSE){
 		colOrder<-c(colOrder,which(colnames(mergedDF)==paste0("ParentID",p)))
 	}
 	mergedDF<-mergedDF[,colOrder]
+		
+
+
 
 	# SORT FEATURES 
 	testTree<-get_features(gffFile, outFormat="tree",fileType = "GFF3")
@@ -235,9 +233,10 @@ gff3_to_paths<-function(gffFile, outFile, forceOverwrite=FALSE){
 	featureOrder<-factor(featureList, levels=featureList)
 	
 	mergedDF<- mergedDF %>% dplyr::arrange(.data$Chr, as.numeric(.data$Start), dplyr::desc(as.numeric(.data$End)), factor(.data$Feature, levels = featureList))
-	
-	
-	pathList<-as.data.frame(t(apply(mergedDF,1,function(x){c(x["Chr"],x["Start"],x["End"],x["Strand"],paste(x[5:length(x)][!is.na(x[5:length(x)]) & x[5:length(x)]!=""],collapse=";"))})))
+
+	pathList<-as.data.frame(t(apply(mergedDF,1,function(x){c(x["Chr"],as.numeric(x["Start"]),as.numeric(x["End"]),x["Strand"],paste(x[5:length(x)][!is.na(x[5:length(x)]) & x[5:length(x)]!=""],collapse=";"))})))
+
+
 	message("Copying paths file") 
 	
 	utils::write.table(pathList,file=foutput,col.names=FALSE,quote=FALSE,sep="\t", row.names=FALSE,append=FALSE)
@@ -247,8 +246,6 @@ gff3_to_paths<-function(gffFile, outFile, forceOverwrite=FALSE){
 
 	return(foutput)
 }
-
-
 
 
 #' Generates SAF formatted data from a features path file for the given blocks and features
@@ -268,7 +265,7 @@ saf_from_paths<-function(pathsFile,groupBy=c("mRNA","gene"),block=c("exon","CDS"
 	DF<-data.frame("GeneID"=character(0),"Chr"=character(0),"Start"=numeric(0),"End"=numeric(0),"Strand"=character(0),"Notes"=character(0), stringsAsFactors=FALSE)
 	message("Getting SAF")
 	if(length(block)==0){
-		searchLine=paste(paste0("\t",groupBy,";([^;]+)$"),collapse="|")
+		searchLine=paste(paste0("\t",groupBy,";"),collapse="|")
 		selected_lines<-thelines[which(grepl(searchLine,thelines,perl=TRUE))]
 		THE_RESULT<-sapply(selected_lines,function(x) {if(is.null(x)) { "FEATURENOTFOUND" } else { x }})
 		for (g in seq(from=1,to=length(groupBy),by=1)) {
@@ -516,7 +513,16 @@ plot_features<- function(inFile, outFile, includeCounts=FALSE, fileType=c("AUTO"
 	if (!base::file.exists(inFile)) { 
 		stop(paste0("Input GFF file ",inFile," not found."))
 	}
+
+
+	cleanInFile<-inFile
+	
 	detectedExt<-tools::file_ext(inFile)
+	if((tolower(detectedExt) == "gz")){
+		cleanInFile<-paste0(sub(pattern = "(.*)\\..{0,4}$", replacement = "\\1", inFile))
+		message("Gzipped file detected.")
+		detectedExt<-tools::file_ext(cleanInFile)
+	}
 
 	if(fileType == "AUTO"){
 		if(tolower(detectedExt) == "gtf"){
@@ -526,13 +532,20 @@ plot_features<- function(inFile, outFile, includeCounts=FALSE, fileType=c("AUTO"
 			fileExt=tolower(detectedExt)
 			fileType = "GFF3"			
 		} else {
-			message(paste0("Unknown file type", detectedExt,": Defaulting to GFF3"))
-			fileExt="gff3"		
-			fileType = "GFF3"				
+			# message(paste0("Unknown file type ", detectedExt,": Defaulting to GFF3"))
+			# fileExt="gff3"
+			# fileType = "GFF3"	
+			message(paste0("Unknown file extension ", detectedExt,": Use a standard extension (\"gtf\",\"gff\",\"gff3\") or use the fileType argument to indicate the gff version (\"GTF\",\"GFF\")"))
+			return ("")
+			
 		}
+	} else if (fileType == "GTF") {
+		fileExt="gtf"
+		fileType = "GTF"
+	} else {
+		fileExt="gff3"
+		fileType = "GFF3"				
 	}
-
-	
 	pairsFile=paste0(inFile,".pairs")
 	if (!base::file.exists(pairsFile)) {
 		message ("Creating pairs file...")
@@ -570,7 +583,7 @@ plot_features<- function(inFile, outFile, includeCounts=FALSE, fileType=c("AUTO"
 				return()
 			}
 
-			foutput=paste0(inFile,".",exportFormat)
+			foutput=paste0(cleanInFile,".",exportFormat)
 		}
 		
 		data.tree::ToDiagrammeRGraph(myTree) %>% DiagrammeR::export_graph(file_name=foutput, file_type=exportFormat)
@@ -605,8 +618,16 @@ get_features<- function(inFile, includeCounts=FALSE, outFormat=c("tree", "data.f
 
 	fileType <- match.arg(fileType)
 	outFormat <- match.arg(outFormat)
+
+	cleanInFile<-inFile
 	
-	pairsFile=paste0(inFile,".pairs")
+	detectedExt<-tools::file_ext(inFile)
+	if((tolower(detectedExt) == "gz")){
+		cleanInFile<-paste0(sub(pattern = "(.*)\\..{0,4}$", replacement = "\\1", inFile))
+		message("Gzipped file detected.")
+	}
+	
+	pairsFile=paste0(cleanInFile,".pairs")
 	if (!base::file.exists(pairsFile)) {
 		message ("Creating pairs file...")
 		get_pairs_from_gff(inFile,fileType=fileType)
@@ -778,6 +799,14 @@ get_pairs_from_gtf<-function(gtfFile, outFile, forceOverwrite=FALSE){
 	cnames <- c("seqname","source","feature","start","end","score","strand","frame","attribute")
 	myGTFdata <- utils::read.delim(gtfFile, header=F,  sep="\t", comment.char = "#", quote="", blank.lines.skip=T) %>%    `colnames<-`(cnames)  
 
+	different_features<-unique(myGTFdata$feature)
+	if(length(different_features) > 100){
+		validFeatures=c("gene", "transcript", "exon",  "CDS", "Selenocysteine", "start_codon", "stop_codon", "UTR", "5UTR", "3UTR", "inter", "inter_CNS", "intron_CNS")
+		message(paste0("There are too many different feature types (",length(different_features),"). Only the following features (if present) will be shown."))
+		message(paste(validFeatures, collapse=","))
+		myGTFdata<-myGTFdata[myGTFdata$feature %in% validFeatures,]
+	}
+
 	featureList<- myGTFdata %>% dplyr::group_by(.data$feature) %>% dplyr::summarise(N = dplyr::n())
 	parentElem<-sapply(featureList$feature,function(x){ if(x == "transcript") {"gene"} else { if ( x == "gene") {""} else {"transcript"}}})
 
@@ -792,8 +821,8 @@ get_pairs_from_gtf<-function(gtfFile, outFile, forceOverwrite=FALSE){
 
 	addTranscripts<-!any(grepl(transcriptPattern,myGTFdata[myGTFdata$feature == "transcript","attribute"],perl=T,ignore.case=T))
 	if(addTranscripts){
-			selected_transcriptid_lines<-grep(transcriptPattern,myGTFdata[,"attribute"],perl=T,ignore.case=T)
-		transcriptIDs<-unique(gsub(transcriptPatternFull,"\\1",myGTFdata[selected_geneid_lines,"attribute"],perl=T,ignore.case=T))
+		selected_transcriptid_lines<-grep(transcriptPattern,myGTFdata[,"attribute"],perl=T,ignore.case=T)
+		transcriptIDs<-unique(gsub(transcriptPatternFull,"\\1",myGTFdata[selected_transcriptid_lines,"attribute"],perl=T,ignore.case=T))
 		DF[nrow(DF)+1,]<-c("transcript","gene",length(transcriptIDs))
 	}
 
@@ -851,6 +880,15 @@ gtf_to_paths<-function(gtfFile, outFile, forceOverwrite=FALSE){
 	cnames <- c("seqname","source","feature","start","end","score","strand","frame","attribute")
 	myGTFdata <- utils::read.delim(gtfFile, header=F,  sep="\t", comment.char = "#", quote="", blank.lines.skip=T) %>%    `colnames<-`(cnames)  
 
+	different_features<-unique(myGTFdata$feature)
+	if(length(different_features) > 100){
+		validFeatures=c("gene", "transcript", "exon",  "CDS", "Selenocysteine", "start_codon", "stop_codon", "UTR", "5UTR", "3UTR", "inter", "inter_CNS", "intron_CNS")
+		message(paste0("There are too many different feature types (",length(different_features),"). Only the following features (if present) will be shown."))
+		message(paste(validFeatures, collapse=","))
+		myGTFdata<-myGTFdata[myGTFdata$feature %in% validFeatures,]
+	}
+
+
 	fLevels<-unique(myGTFdata$feature)
 	tIndex<-which(fLevels=="transcript")
 	if(length(tIndex)>0){
@@ -894,50 +932,78 @@ gtf_to_paths<-function(gtfFile, outFile, forceOverwrite=FALSE){
 
 	myGTFdata <- myGTFdata %>% dplyr::mutate(gene_id=geneIDs, transcript_id=transcriptIDs, fcounter=featureCounter)
 
-	# CHECK FOR MISSING TRANSCRIPT OR GENE PARENTS
-	addGenes<-!any(grepl(genePattern,myGTFdata[myGTFdata$feature == "gene","attribute"],perl=T,ignore.case=T))
+
+	# CHECK FOR MISSING GENE PARENTS
+
+	allGenes<-sort(unique(myGTFdata[myGTFdata$feature != "gene",]$gene_id))
+	if("" %in% allGenes){
+		allGenes<-allGenes[-which(allGenes == "")]
+	} 
+
+
+	featuredGenes<-sort(unique(myGTFdata[myGTFdata$feature == "gene",]$gene_id))
+	if("" %in% featuredGenes){
+		featuredGenes<-featuredGenes[-which(featuredGenes == "")]
+	} 
+
+	addGenes= (length(allGenes) > length(featuredGenes))
+	
 	if(addGenes){
-		geneList<-data.frame(geneID=gsub(genePatternFull,"\\1",myGTFdata[selected_geneid_lines,"attribute"],perl=T,ignore.case=T),start=myGTFdata[selected_geneid_lines,"start"],end=myGTFdata[selected_geneid_lines,"end"] )
-
-		geneDF <- geneList %>% dplyr::group_by(.data$geneID) %>% dplyr::summarise(start=min(.data$start), end=max(.data$end)) %>% dplyr::mutate(ASSIGNED=0)
-
+		missingGenes<-allGenes[which(!(allGenes %in% featuredGenes))]
+		geneDF <- myGTFdata[myGTFdata$gene_id %in% missingGenes,] %>% dplyr::group_by(.data$gene_id,.data$seqname,.data$strand) %>% dplyr::summarise(start=min(.data$start), end=max(.data$end)) %>% dplyr::mutate(ASSIGNED=0)
 	}
 
-	addTranscripts<-!any(grepl(transcriptPattern,myGTFdata[myGTFdata$feature == "transcript","attribute"],perl=T,ignore.case=T))
+	# CHECK FOR MISSING TRANSCRIPT PARENTS
+
+	allTranscripts<-sort(unique(myGTFdata[myGTFdata$feature != "gene" & myGTFdata$feature != "transcript",]$transcript_id))
+	if("" %in% allTranscripts){
+		allTranscripts<-allTranscripts[-which(allTranscripts == "")]
+	} 
+
+	featuredTranscripts<-sort(unique(myGTFdata[myGTFdata$feature == "transcript",]$transcript_id))
+	if("" %in% featuredTranscripts){
+		featuredTranscripts<-featuredTranscripts[-which(featuredTranscripts == "")]
+	} 
+
+	addTranscripts= (length(allTranscripts) > length(featuredTranscripts))
+
 	if(addTranscripts){
-		transcriptList<-data.frame(transcriptID=gsub(transcriptPatternFull,"\\1",myGTFdata[selected_geneid_lines,"attribute"],perl=T,ignore.case=T),start=myGTFdata[selected_geneid_lines,"start"],end=myGTFdata[selected_geneid_lines,"end"] )
+		missingTranscripts<-allTranscripts[which(!(allTranscripts %in% featuredTranscripts))]
+		transcriptDF<- myGTFdata[myGTFdata$feature != "gene" & (myGTFdata$transcript_id %in% missingTranscripts),] %>% dplyr::group_by(.data$transcript_id,.data$gene_id,.data$seqname,.data$strand)  %>% dplyr::summarise(start=min(.data$start), end=max(.data$end)) %>% dplyr::mutate(ASSIGNED=0)
 
-		transcriptDF <- transcriptList %>% dplyr::group_by(.data$transcriptID) %>% dplyr::summarise(start=min(.data$start), end=max(.data$end)) %>% dplyr::mutate(ASSIGNED=0)
 	}
+
+	## CREATE PATHS DATA  
+
+	pathsData<-data.frame(seqname=character(0),start=numeric(0),end=numeric(0),strand=character(0),path=character(0), featureType=numeric(0))
+	myGTFdataGene<-myGTFdata[myGTFdata$feature == "gene",]
+	if(nrow(myGTFdataGene)>0){
+		pathsData<-rbind(pathsData,data.frame(seqname=myGTFdataGene$seqname,start=as.numeric(myGTFdataGene$start),end=as.numeric(myGTFdataGene$end), strand=myGTFdataGene$strand,path=paste0("gene;",myGTFdataGene$gene_id),featureType=rep(0,nrow(myGTFdataGene))))
+	}
+	myGTFdataTranscript<-myGTFdata[myGTFdata$feature == "transcript",]	
+	if(nrow(myGTFdataTranscript)>0){
+		pathsData<-rbind(pathsData,data.frame(seqname=myGTFdataTranscript$seqname,start=as.numeric(myGTFdataTranscript$start),end=as.numeric(myGTFdataTranscript$end), strand=myGTFdataTranscript$strand,path=paste0("transcript;",myGTFdataTranscript$transcript_id,";gene;",myGTFdataTranscript$gene_id),featureType=rep(1,nrow(myGTFdataTranscript))))
+	}
+
+	myGTFdataOthers<-myGTFdata[myGTFdata$feature != "transcript" & myGTFdata$feature != "gene",]	
+	if(nrow(myGTFdataOthers)>0){
+		pathsData<-rbind(pathsData,pathsDataO<-data.frame(seqname=myGTFdataOthers$seqname,start=as.numeric(myGTFdataOthers$start),end=as.numeric(myGTFdataOthers$end), strand=myGTFdataOthers$strand,path=paste0(myGTFdataOthers$feature,";",myGTFdataOthers$feature,"_",myGTFdataOthers$fcounter,";transcript;",myGTFdataOthers$transcript_id,";gene;",myGTFdataOthers$gene_id),featureType=rep(2,nrow(myGTFdataOthers))))
+	}
+
+
+	if (addGenes){
+		pathsData<-rbind(pathsData,data.frame(seqname=geneDF$seqname,start=as.numeric(geneDF$start),end=as.numeric(geneDF$end), strand=geneDF$strand,path=paste0("gene;",geneDF$gene_id),featureType=rep(0,nrow(geneDF))))
+	}
+
+	if (addTranscripts){
+		pathsData<-rbind(pathsData,data.frame(seqname=transcriptDF$seqname,start=as.numeric(transcriptDF$start),end=as.numeric(transcriptDF$end), strand=transcriptDF$strand,path=paste0("transcript;",transcriptDF$transcript_id,";gene;",transcriptDF$gene_id),featureType=rep(1,nrow(transcriptDF))))
+	}
+	
+	# SORT AND WRITE TO FILE
+	orderedPathsData<- pathsData %>% dplyr::arrange(.data$seqname, .data$start, dplyr::desc(.data$end), .data$featureType)
+	utils::write.table(orderedPathsData[,c(1:5)], foutput, sep="\t", quote=F, row.names = FALSE, col.names=FALSE)
 
 	
-	fileConn<-base::file(foutput, 'w')
-	apply(myGTFdata,1, function(x){
-		fType<-x["feature"]
-		if (fType == "gene") {
-			cat(paste0(x["seqname"],"\t",as.numeric(x["start"]),"\t",as.numeric(x["end"]),"\t",x["strand"],"\tgene;",x["gene_id"],"\n"),file=fileConn,append=TRUE, sep="")					
-		} else {
-			if (addGenes && x["gene_id"] != ""){
-				if(geneDF[geneDF$geneID==x["gene_id"],]$ASSIGNED == 0){
-					cat(paste0(x["seqname"],"\t",geneDF[geneDF$geneID==x["gene_id"],]$start,"\t",geneDF[geneDF$geneID==x["gene_id"],]$end,"\t",x["strand"],"\tgene;",x["gene_id"],"\n"),file=fileConn,append=TRUE, sep="")
-					geneDF[geneDF$geneID==x["gene_id"],]$ASSIGNED == 1
-				}
-			}
-		
-			if (fType == "transcript") {
-				cat(paste0(x["seqname"],"\t",as.numeric(x["start"]),"\t",as.numeric(x["end"]),"\t",x["strand"],"\ttranscript;",x["transcript_id"],";gene;",x["gene_id"],"\n"),file=fileConn,append=TRUE, sep="")
-			} else {
-				if (addTranscripts && x["transcript_id"] != ""){			
-					if(transcriptDF[transcriptDF$transcriptID==x["transcript_id"],]$ASSIGNED == 0){
-						cat(paste0(x["seqname"],"\t",transcriptDF[transcriptDF$transcriptID==x["transcript_id"],]$start,"\t",transcriptDF[transcriptDF$transcriptID==x["transcript_id"],]$end,"\t",x["strand"],"\ttranscript;",x["transcript_id"],";gene;",x["gene_id"],"\n"),file=fileConn,append=TRUE, sep="")
-						transcriptDF[transcriptDF$transcriptID==x["transcript_id"],]$ASSIGNED == 1
-					}
-				}
-				cat(paste0(x["seqname"],"\t",as.numeric(as.numeric(x["start"])),"\t",as.numeric(as.numeric(x["end"])),"\t",x["strand"],"\t",fType,";",fType,"_",x["fcounter"],";transcript;",x["transcript_id"],";gene;",x["gene_id"],"\n"),file=fileConn,append=TRUE, sep="")
-			}
-		}
-	})	
-	close(fileConn)
 
 	rm(list=setdiff(ls(), "foutput"))	
 	gc(reset=T)
@@ -1059,7 +1125,15 @@ sort_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), forceOverwr
 	if (!base::file.exists(inFile)) { 
 		stop(paste0("Input file ",inFile," not found."))
 	}
+	
+	cleanInFile<-inFile
+	
 	detectedExt<-tools::file_ext(inFile)
+	if((tolower(detectedExt) == "gz")){
+		cleanInFile<-paste0(sub(pattern = "(.*)\\..{0,4}$", replacement = "\\1", inFile))
+		message("Gzipped file detected.")
+		detectedExt<-tools::file_ext(cleanInFile)
+	}
 
 	if(fileType == "AUTO"){
 		if(tolower(detectedExt) == "gtf"){
@@ -1069,14 +1143,23 @@ sort_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), forceOverwr
 			fileExt=tolower(detectedExt)
 			fileType = "GFF3"			
 		} else {
-			message(paste0("Unknown file type", detectedExt,": Defaulting to GFF3"))
-			fileExt="gff3"		
-			fileType = "GFF3"				
+			# message(paste0("Unknown file type ", detectedExt,": Defaulting to GFF3"))
+			# fileExt="gff3"
+			# fileType = "GFF3"	
+			message(paste0("Unknown file extension ", detectedExt,": Use a standard extension (\"gtf\",\"gff\",\"gff3\") or use the fileType argument to indicate the gff version (\"GTF\",\"GFF\")"))
+			return ("")
+			
 		}
+	} else if (fileType == "GTF") {
+		fileExt="gtf"
+		fileType = "GTF"
+	} else {
+		fileExt="gff3"
+		fileType = "GFF3"				
 	}
 
 	if(missing(outFile)){
-		foutput=paste0(sub(pattern = "(.*)\\..{0,4}$", replacement = "\\1", inFile),".sorted.",fileExt)
+		foutput=paste0(sub(pattern = "(.*)\\..{0,4}$", replacement = "\\1", cleanInFile),".sorted.",fileExt)
 	} else {
 		foutput=outFile
 	}
@@ -1127,7 +1210,16 @@ saf_from_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), forceOv
 	if (!base::file.exists(inFile)) { 
 		stop(paste0("Input annotation file ",inFile," not found."))
 	}
+
+
+	cleanInFile<-inFile
+	
 	detectedExt<-tools::file_ext(inFile)
+	if((tolower(detectedExt) == "gz")){
+		cleanInFile<-paste0(sub(pattern = "(.*)\\..{0,4}$", replacement = "\\1", inFile))
+		message("Gzipped file detected.")
+		detectedExt<-tools::file_ext(cleanInFile)
+	}
 
 	if(fileType == "AUTO"){
 		if(tolower(detectedExt) == "gtf"){
@@ -1137,12 +1229,20 @@ saf_from_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), forceOv
 			fileExt=tolower(detectedExt)
 			fileType = "GFF3"			
 		} else {
-			message(paste0("Unknown file type", detectedExt,": Defaulting to GFF3"))
-			fileExt="gff3"		
-			fileType = "GFF3"				
+			# message(paste0("Unknown file type ", detectedExt,": Defaulting to GFF3"))
+			# fileExt="gff3"
+			# fileType = "GFF3"	
+			message(paste0("Unknown file extension ", detectedExt,": Use a standard extension (\"gtf\",\"gff\",\"gff3\") or use the fileType argument to indicate the gff version (\"GTF\",\"GFF\")"))
+			return ("")
+			
 		}
+	} else if (fileType == "GTF") {
+		fileExt="gtf"
+		fileType = "GTF"
+	} else {
+		fileExt="gff3"
+		fileType = "GFF3"				
 	}
-
 
 	escapedSep<-gsub("([.|()\\^{}+$*?]|\\[|\\])", "\\\\\\1", sep)
 
@@ -1187,7 +1287,7 @@ saf_from_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), forceOv
 					fSuffix<-paste0(fSuffix,"-",blockList[i])
 				}
 		}
-		foutput=paste0(inFile,fSuffix,".saf")
+		foutput=paste0(cleanInFile,fSuffix,".saf")
 	} else {
 		foutput=outFile
 	}
@@ -1198,13 +1298,13 @@ saf_from_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), forceOv
 		return(foutput)
 	}
 	
-	PATHSfile=paste0(inFile,".paths")
+	PATHSfile=paste0(cleanInFile,".paths")
 	if (!base::file.exists(PATHSfile)) {
 		message ("Creating PATHS file... please be patient...")
 		if(fileType == "GFF3"){
-			gff3_to_paths(inFile)
+			gff3_to_paths(inFile, outFile=PATHSfile)
 		} else {
-			gtf_to_paths(inFile)			
+			gtf_to_paths(inFile, outFile=PATHSfile)			
 		}
 	}
 
@@ -1212,15 +1312,17 @@ saf_from_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), forceOv
 
 	for (i in c(1:length(featureList))){
 		if(blockList[i] == ""){
+			featureParam=c(featureList[i])
 			blockParam=c()
 		} else {
 			blockParam=c(blockList[i])
+			featureParam=c(featureList[i])
 		}
 		if(i==1){
-			safDF<-unique(saf_from_paths(PATHSfile,groupBy=c(featureList[i]),block=blockParam))
+			safDF<-unique(saf_from_paths(PATHSfile,groupBy=featureParam,block=blockParam))
 		} else {
 
-			safDF<-rbind(safDF,unique(saf_from_paths(PATHSfile,groupBy=c(featureList[i]),block=blockParam)))
+			safDF<-rbind(safDF,unique(saf_from_paths(PATHSfile,groupBy=featureParam,block=blockParam)))
 		}
 	}	
 	safDF<-unique(safDF[order(safDF[,2], safDF[,3], safDF[,4], safDF[,1] ),])
@@ -1252,7 +1354,16 @@ get_pairs_from_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), f
 	if (!base::file.exists(inFile)) { 
 		stop(paste0("Input file ",inFile," not found."))
 	}
+
+
+	cleanInFile<-inFile
+	
 	detectedExt<-tools::file_ext(inFile)
+	if((tolower(detectedExt) == "gz")){
+		cleanInFile<-paste0(sub(pattern = "(.*)\\..{0,4}$", replacement = "\\1", inFile))
+		message("Gzipped file detected.")
+		detectedExt<-tools::file_ext(cleanInFile)
+	}
 
 	if(fileType == "AUTO"){
 		if(tolower(detectedExt) == "gtf"){
@@ -1262,14 +1373,23 @@ get_pairs_from_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), f
 			fileExt=tolower(detectedExt)
 			fileType = "GFF3"			
 		} else {
-			message(paste0("Unknown file type", detectedExt,": Defaulting to GFF3"))
-			fileExt="gff3"		
-			fileType = "GFF3"				
+			# message(paste0("Unknown file type ", detectedExt,": Defaulting to GFF3"))
+			# fileExt="gff3"
+			# fileType = "GFF3"	
+			message(paste0("Unknown file extension ", detectedExt,": Use a standard extension (\"gtf\",\"gff\",\"gff3\") or use the fileType argument to indicate the gff version (\"GTF\",\"GFF\")"))
+			return ("")
+			
 		}
+	} else if (fileType == "GTF") {
+		fileExt="gtf"
+		fileType = "GTF"
+	} else {
+		fileExt="gff3"
+		fileType = "GFF3"				
 	}
 
 	if(missing(outFile)){
-		foutput=paste0(inFile,".pairs")
+		foutput=paste0(cleanInFile,".pairs")
 	} else {
 		foutput=outFile
 	}
@@ -1283,9 +1403,9 @@ get_pairs_from_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), f
 	}
 
 	if(fileType == "GFF3"){
-		return(get_pairs_from_gff3(inFile, outFile, forceOverwrite))
+		return(get_pairs_from_gff3(inFile, foutput, forceOverwrite))
 	} else {
-		return(get_pairs_from_gtf(inFile, outFile, forceOverwrite))
+		return(get_pairs_from_gtf(inFile, foutput, forceOverwrite))
 	}
 }
 
@@ -1316,7 +1436,13 @@ gtf_to_gff3<-function(gtfFile, outFile, forceOverwrite=FALSE){
 	}
 
 	if(missing(outFile)){
-		foutput=paste0(gtfFile,".gff3")
+		cleanGtfFile<-gtfFile
+		detectedExt<-tools::file_ext(gtfFile) 
+		if((tolower(detectedExt) == "gz")){
+			cleanGtfFile<-paste0(sub(pattern = "(.*)\\..{0,4}$", replacement = "\\1", gtfFile))
+		}	
+		
+		foutput=paste0(cleanGtfFile,".gff3")
 	} else {
 		foutput=outFile
 	}
@@ -1331,76 +1457,82 @@ gtf_to_gff3<-function(gtfFile, outFile, forceOverwrite=FALSE){
 
 	myGTFdata<-rtracklayer::import.gff2(gtfFile)
 
-	GroupedGenes <- (as.data.frame(myGTFdata) %>% dplyr::group_by(.data$gene_id) %>% dplyr::summarise(gtypes = paste0(unique(.data$type), collapse = " ")) )
 
-	GroupedTranscripts <- (as.data.frame(myGTFdata) %>% dplyr::group_by(.data$transcript_id) %>% dplyr::summarise(ttypes = paste0(unique(.data$type), collapse = " ")) )
+	if("" %in% myGTFdata$gene_id){
+		empty_gene_ids<-which(myGTFdata$gene_id == "")
+		warning(paste0("There are ",length(empty_gene_ids)," empty gene_id values and will be ignored"))
+		myGTFdata[empty_gene_ids,]$gene_id<-NA
+	}
+
+	if("" %in% myGTFdata$transcript_id){
+		empty_transcript_ids<-which(myGTFdata$transcript_id == "")
+		warning(paste0("There are ",length(empty_transcript_ids)," empty transcript_id values and will be ignored"))
+		myGTFdata[empty_transcript_ids,]$transcript_id<-NA
+	}
 
 
 	############# CHECK MISSING TRANSCRIPTS
-	addTranscript<-!any(grepl("transcript ",unique(GroupedTranscripts$ttypes)))
-	if(addTranscript){
+	allTranscripts<-sort(unique(myGTFdata[myGTFdata$type != "gene" & myGTFdata$type != "transcript",]$transcript_id))
+	featuredTranscripts<-sort(unique(myGTFdata[myGTFdata$type == "transcript",]$transcript_id))
+	addTranscripts= (length(allTranscripts) > length(featuredTranscripts))
 
-			TranscriptsCoords <- as.data.frame(myGTFdata) %>% dplyr::group_by(.data$transcript_id,.data$seqnames, .data$strand, .data$source) %>% dplyr::summarise(start = min(.data$start), end = max(.data$end))
-			TranscriptsCoords$type<-"transcript"
-			## Todo ADD UNIQUE FIELDS?
-			presentTranscripts<-grep("transcript ",GroupedTranscripts$ttypes)
-			if(length(presentTranscripts) > 0){
-				TranscriptsCoords<-TranscriptsCoords[TranscriptsCoords$transcript_id %in% GroupedTranscripts[-presentTranscripts,]$transcript_id]
-			} 
-			
+	if(addTranscripts){
+		missingTranscripts<-allTranscripts[which(!(allTranscripts %in% featuredTranscripts))]
 
-			
 
-			TranscriptsCoordsGR<-GenomicRanges::makeGRangesFromDataFrame(TranscriptsCoords,
-							 keep.extra.columns=TRUE,
-							 ignore.strand=FALSE,
-							 seqinfo=NULL,
-							 seqnames.field=c("seqnames"),
-							 start.field="start",
-							 end.field="end",
-							 strand.field="strand")
-			
-			for( i in 1:nrow(TranscriptsCoords)){
-				TranscriptPos<-match(TranscriptsCoords[i,"transcript_id"], myGTFdata$transcript_id)-1
-				myGTFdata<-S4Vectors::append(myGTFdata,TranscriptsCoordsGR[i,],TranscriptPos)			
-			}
+		TranscriptsCoords <- as.data.frame(myGTFdata[myGTFdata$type != "gene" & myGTFdata$transcript_id %in% missingTranscripts]) %>% dplyr::group_by(.data$transcript_id, .data$gene_id ,.data$seqnames, .data$strand, .data$source) %>% dplyr::summarise(start = min(.data$start), end = max(.data$end))
+		TranscriptsCoords$type<-"transcript"
+
+		
+
+		TranscriptsCoordsGR<-GenomicRanges::makeGRangesFromDataFrame(TranscriptsCoords,
+						 keep.extra.columns=TRUE,
+						 ignore.strand=FALSE,
+						 seqinfo=NULL,
+						 seqnames.field=c("seqnames"),
+						 start.field="start",
+						 end.field="end",
+						 strand.field="strand")
+
+		myGTFdata<-S4Vectors::append(myGTFdata,TranscriptsCoordsGR)
+
 	}
 
 	############# CHECK MISSING GENES
-	addGenes<-!any(grepl("gene ",unique(GroupedGenes$gtypes)))
+	allGenes<-sort(unique(myGTFdata[myGTFdata$type != "gene",]$gene_id))
+	
+	featuredGenes<-sort(unique(myGTFdata[myGTFdata$type == "gene",]$gene_id))
+	addGenes= (length(allGenes) > length(featuredGenes))
+	
 	if(addGenes){
+		missingGenes<-allGenes[which(!(allGenes %in% featuredGenes))]
 
-			GenesCoords <- as.data.frame(myGTFdata) %>% dplyr::group_by(.data$gene_id,.data$seqnames, .data$strand, .data$source) %>% dplyr::summarise(start = min(.data$start), end = max(.data$end))
-			GenesCoords$type<-"gene"
-			## Todo ADD UNIQUE FIELDS?
-			presentGenes<-grep("gene ",GroupedGenes$gtypes)
-			if(length(presentGenes) > 0){
-				GenesCoords<-GenesCoords[GenesCoords$gene_id %in% GroupedGenes[-presentGenes,]$gene_id,]
-			} 
-			
+		GenesCoords <- as.data.frame(myGTFdata[myGTFdata$gene_id %in% missingGenes,]) %>% dplyr::group_by(.data$gene_id,.data$seqnames, .data$strand, .data$source) %>% dplyr::summarise(start = min(.data$start), end = max(.data$end))
+		GenesCoords$type<-"gene"
+		
 
 
-			GenesCoordsGR<-GenomicRanges::makeGRangesFromDataFrame(GenesCoords,
-							 keep.extra.columns=TRUE,
-							 ignore.strand=FALSE,
-							 seqinfo=NULL,
-							 seqnames.field=c("seqnames"),
-							 start.field="start",
-							 end.field="end",
-							 strand.field="strand")
-			
-			myGTFdata<-S4Vectors::append(myGTFdata,GenesCoordsGR)
+		GenesCoordsGR<-GenomicRanges::makeGRangesFromDataFrame(GenesCoords,
+						 keep.extra.columns=TRUE,
+						 ignore.strand=FALSE,
+						 seqinfo=NULL,
+						 seqnames.field=c("seqnames"),
+						 start.field="start",
+						 end.field="end",
+						 strand.field="strand")
+		
+		myGTFdata<-S4Vectors::append(myGTFdata,GenesCoordsGR)
+
 	}
 
-	
+
+	# SORT DATA
 	tIndex<-which(levels(myGTFdata$type)=="transcript")
 	newLevels<-c("transcript",levels(myGTFdata$type)[-tIndex])
 	gIndex<-which(newLevels=="gene")
 	newLevels<-c("gene",newLevels[-gIndex])
 
-	# sort(myGTFdata, by = ~ seqnames + start + rev(end))
 	
-	# sort(myGTFdata)
 	orderedGff<- as.data.frame(myGTFdata) %>% dplyr::arrange(.data$seqnames, .data$start, dplyr::desc(.data$end), factor(.data$type, levels = newLevels))
 
 
@@ -1412,12 +1544,9 @@ gtf_to_gff3<-function(gtfFile, outFile, forceOverwrite=FALSE){
 					 end.field="end",
 					 strand.field="strand")
 			
-			
-	#		for( i in 1:nrow(GenesCoords)){
-	#			GenePos<-match(GenesCoords[i,"gene_id"], myGTFdata$gene_id)-1
-	#			myGTFdata<-S4Vectors::append(myGTFdata,GenesCoordsGR[i,],GenePos)			
-	#		}
 
+
+	# ADD MISSING IDs
 	fLevels<-unique(myGTFdata$type)
 	featureCounter<-rep("",length(myGTFdata))
 	cFeatures<-fLevels[fLevels != "transcript" & fLevels != "gene"]
@@ -1428,11 +1557,6 @@ gtf_to_gff3<-function(gtfFile, outFile, forceOverwrite=FALSE){
 	}
 	S4Vectors::mcols(myGTFdata)$featureCounter<-featureCounter
 
-
-
-	#apply(myGTFdata, MARGIN = 1, function(x) {if(x$type=="gene"){x$gene_id} else if(x$type=="transcript"){x$transcript_id} else {NA}})
-
-	#IDs<-apply(as.data.frame(S4Vectors::mcols(myGTFdata)), MARGIN = 1, function(x) { if (as.character(x["type"])=="gene"){as.character(x["gene_id"])} else if(as.character(x["type"]) =="transcript"){as.character(x["transcript_id"])} else {NA}})
 	IDs<-apply(as.data.frame(S4Vectors::mcols(myGTFdata)), MARGIN = 1, function(x) { 
 		if (as.character(x["type"])=="gene"){
 			as.character(x["gene_id"])
@@ -1465,7 +1589,7 @@ gtf_to_gff3<-function(gtfFile, outFile, forceOverwrite=FALSE){
 	
 	n_occur <- data.frame(table(IDs))
 	if(nrow(n_occur[n_occur$Freq > 1,])){
-		warning(paste0("There are repeated IDs in the conversion:",n_occur[n_occur$Freq > 1,]))
+		warning(paste0("There are ",nrow(n_occur[n_occur$Freq > 1,])," repeated IDs after the conversion. ID: ",n_occur[n_occur$Freq > 1,]$IDs))
 	}
 	
 
@@ -1481,9 +1605,6 @@ gtf_to_gff3<-function(gtfFile, outFile, forceOverwrite=FALSE){
 
 	rtracklayer::export.gff(myGTFdata,foutput)
 
-	# currentTime<-as.numeric(Sys.time())
-	# elapsedTime<-currentTime - startTime;
-	# message(paste0(gtfFile, "converted to ",foutput, " in ",formatC(elapsedTime %/% 60 %% 60, format = "d", flag = "0"),"m:",formatC(elapsedTime %% 60, width = 2, format = "d", flag = "0"),"s"))
 
 	rm(list=setdiff(ls(), "foutput"))	
 	gc(reset=T)
@@ -1501,6 +1622,7 @@ gtf_to_gff3<-function(gtfFile, outFile, forceOverwrite=FALSE){
 #'  \describe{
 #'  \item{NCOLUMNS_EXCEEDED}{Input file contains lines with more than 9 fields}
 #'  \item{NCOLUMNS_INFERIOR}{Input file contains lines with less than 9 fields}
+#'  \item{TOO_MANY_FEATURE_TYPES}{Input file contains too many (more than 100) different feature types}
 #'  \item{NO_IDs}{ID attribute not found in any feature}
 #'  \item{DUPLICATED_IDs}{There are duplicated IDs}
 #'  \item{ID_IN_MULTIPLE_CHR}{The same ID has been found in more than one chromosome}
@@ -1517,6 +1639,7 @@ gtf_to_gff3<-function(gtfFile, outFile, forceOverwrite=FALSE){
 #'  \describe{
 #'  \item{NCOLUMNS_EXCEEDED}{Input file contains lines with more than 9 fields}
 #'  \item{NCOLUMNS_INFERIOR}{Input file contains lines with less than 9 fields}
+#'  \item{TOO_MANY_FEATURE_TYPES}{Input file contains too many (more than 100) different feature types}
 #'  \item{NO_GENE_ID_ATTRIBUTE}{gene_id attribute not found in any feature}
 #'  \item{MISSING_GENE_IDs}{There are features without gene_id attribute}
 #'  \item{NO_GENE_FEATURES}{Gene features are not included in this GTF file}
@@ -1550,9 +1673,16 @@ check_gff<-function(inFile, fileType=c("AUTO","GFF3","GTF")){
 	if (!base::file.exists(inFile)) { 
 		stop(paste0("Input file ",inFile," not found."))
 	}
+	cleanInFile<-inFile
+	
+	detectedExt<-tools::file_ext(inFile) 
+	if((tolower(detectedExt) == "gz")){
+		cleanInFile<-paste0(sub(pattern = "(.*)\\..{0,4}$", replacement = "\\1", inFile))
+		message("Gzipped file detected.")
+		detectedExt<-tools::file_ext(cleanInFile)
+	}
 
 	if(fileType == "AUTO"){
-		detectedExt<-tools::file_ext(inFile)
 		if(tolower(detectedExt) == "gtf"){
 			fileExt="gtf"
 			fileType = "GTF"
@@ -1560,10 +1690,19 @@ check_gff<-function(inFile, fileType=c("AUTO","GFF3","GTF")){
 			fileExt=tolower(detectedExt)
 			fileType = "GFF3"			
 		} else {
-			message(paste0("Unknown file type", detectedExt,": Defaulting to GFF3"))
-			fileExt="gff3"		
-			fileType = "GFF3"				
+			# message(paste0("Unknown file type ", detectedExt,": Defaulting to GFF3"))
+			# fileExt="gff3"
+			# fileType = "GFF3"	
+			message(paste0("Unknown file extension ", detectedExt,": Use a standard extension (\"gtf\",\"gff\",\"gff3\") or use the fileType argument to indicate the gff version (\"GTF\",\"GFF\")"))
+			return ("")
+			
 		}
+	} else if (fileType == "GTF") {
+		fileExt="gtf"
+		fileType = "GTF"
+	} else {
+		fileExt="gff3"
+		fileType = "GFF3"				
 	}
 	
 	if(fileType == "GFF3"){		
@@ -1608,6 +1747,14 @@ check_gff3<-function(gffFile){
 			
 		cnames <- c("seqname","source","feature","start","end","score","strand","frame","attribute")
 		myGFFdata <- utils::read.delim(gffFile, header=F,  sep="\t", comment.char = "#", quote="", blank.lines.skip=T) %>%    `colnames<-`(cnames)  
+
+		different_features<-unique(myGFFdata$feature)
+		if(length(different_features) > 100){
+			errText<-paste0("There are too many different feature types (",length(different_features),")")
+			message(errText) 
+			errorsDetected[nrow(errorsDetected)+1,]<-c("TOO_MANY_FEATURE_TYPES",errText,"MEDIUM")		
+		}
+
 
 		myIDPattern<-"^(.*;)?( *ID *= *([^;]+))(.*)$"
 		selected_id_lines<-grep(myIDPattern,myGFFdata$attribute,perl=T,ignore.case=T)
@@ -1762,6 +1909,14 @@ check_gtf<-function(gtfFile){
 		cnames <- c("seqname","source","feature","start","end","score","strand","frame","attribute")
 		myGTFdata <- utils::read.delim(gtfFile, header=F,  sep="\t", comment.char = "#", quote="", blank.lines.skip=T) %>%    `colnames<-`(cnames)  
 
+
+		### TOO MANY FEATURE TYPES
+		different_features<-unique(myGTFdata$feature)
+		if(length(different_features) > 100){
+			errText<-paste0("There are too many different feature types (",length(different_features),")")
+			message(errText) 
+			errorsDetected[nrow(errorsDetected)+1,]<-c("TOO_MANY_FEATURE_TYPES",errText,"MEDIUM")		
+		}
 
 		### ELEMENTS WITHOUT GENE_ID
 		geneIdPattern<-".* *gene_id +\"?([^\"]+)\"? *(;|$).*"

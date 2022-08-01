@@ -199,6 +199,8 @@ form of a dependence tree by default:
 get_features(gffFile1)
 ```
 
+    ## Creating pairs file...
+
     ##                      levelName
     ## 1                             
     ## 2   ¦--chromosome             
@@ -468,14 +470,14 @@ read.table(safFileConverted2,sep="\t",header=TRUE)
 ```
 
     ##           GeneID Chr    Start      End Strand      Notes
-    ## 1 gene:AT1G56930   1 21278647 21278731      + ncRNA_gene
-    ## 2 gene:AT1G04817   1  3575377  3575814      + ncRNA_gene
-    ## 3 gene:AT1G01010   1     3631     5899      +       gene
-    ## 4 gene:AT1G01110   1    51953    54737      +       gene
-    ## 5 gene:AT1G05997   1  9076445  9076638      - ncRNA_gene
+    ## 1 gene:AT1G01010   1     3631     5899      +       gene
+    ## 2 gene:AT1G01110   1    51953    54737      +       gene
+    ## 3 gene:AT1G04817   1  3575377  3575814      + ncRNA_gene
+    ## 4 gene:AT1G05997   1  9076445  9076638      - ncRNA_gene
+    ## 5 gene:AT1G56930   1 21278647 21278731      + ncRNA_gene
     ## 6 gene:AT2G36600   2 15346160 15346232      + ncRNA_gene
-    ## 7 gene:AT3G41979   3 14199753 14199916      + ncRNA_gene
-    ## 8 gene:AT3G18217   3  6244500  6244716      - ncRNA_gene
+    ## 7 gene:AT3G18217   3  6244500  6244716      - ncRNA_gene
+    ## 8 gene:AT3G41979   3 14199753 14199916      + ncRNA_gene
     ## 9 gene:AT5G02255   5  4690371  4690412      - ncRNA_gene
 
 Some features, like “gene”, are constructs that have constituent

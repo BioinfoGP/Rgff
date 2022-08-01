@@ -22,6 +22,7 @@ The following list indicates the code and description of the issues detected in 
 \describe{
 \item{NCOLUMNS_EXCEEDED}{Input file contains lines with more than 9 fields}
 \item{NCOLUMNS_INFERIOR}{Input file contains lines with less than 9 fields}
+\item{TOO_MANY_FEATURE_TYPES}{Input file contains too many (more than 100) different feature types}
 \item{NO_IDs}{ID attribute not found in any feature}
 \item{DUPLICATED_IDs}{There are duplicated IDs}
 \item{ID_IN_MULTIPLE_CHR}{The same ID has been found in more than one chromosome}
@@ -38,6 +39,7 @@ The following list indicates the code and description of the issues detected in 
 \describe{
 \item{NCOLUMNS_EXCEEDED}{Input file contains lines with more than 9 fields}
 \item{NCOLUMNS_INFERIOR}{Input file contains lines with less than 9 fields}
+\item{TOO_MANY_FEATURE_TYPES}{Input file contains too many (more than 100) different feature types}
 \item{NO_GENE_ID_ATTRIBUTE}{gene_id attribute not found in any feature}
 \item{MISSING_GENE_IDs}{There are features without gene_id attribute}
 \item{NO_GENE_FEATURES}{Gene features are not included in this GTF file}
