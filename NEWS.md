@@ -1,3 +1,12 @@
+# Rgff 0.1.5
+
+* Fixed bug when creating feature trees with a single branch or only level-zero nodes from GFF files
+
+# Rgff 0.1.4
+
+* Sorted output on SAF and paths conversion.
+* Improved performance parsing features with multiple parents.
+ 
 # Rgff 0.1.3
 
 * Bug fixed when transcript features are missing in GTF.

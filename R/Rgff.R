@@ -175,10 +175,12 @@ gff3_to_paths<-function(gffFile, outFile, forceOverwrite=FALSE){
 	
 	withMulti<-grep(",",uniqueFeatureIdAndParent$ParentID)
 	if(length(withMulti)>0){	
-		newItems<-do.call("rbind",lapply(withMulti,function(x){as.data.frame(t(sapply(strsplit(as.character(uniqueFeatureIdAndParent$ParentID[x]),",")[[1]],function(y){as.character(c(uniqueFeatureIdAndParent[x,"Feature"],uniqueFeatureIdAndParent[x,"ID"],y))})))}))
-		colnames(newItems) <- c("Feature", "ID", "ParentID")		
-		
-		uniqueFeatureIdAndParent<-rbind(uniqueFeatureIdAndParent[-withMulti,],newItems)
+
+		nParents<-stringi::stri_count_fixed(uniqueFeatureIdAndParent$ParentID[withMulti],",")
+		newFeat<-uniqueFeatureIdAndParent[withMulti,][rep(seq_len(nrow(uniqueFeatureIdAndParent[withMulti,])), nParents+1), ]
+		newParents<-unlist(strsplit(as.character(uniqueFeatureIdAndParent[withMulti,]$ParentID),","))
+		newFeat$ParentID<-newParents
+		uniqueFeatureIdAndParent<-rbind(uniqueFeatureIdAndParent[-withMulti,],newFeat)
 	}
 
 
@@ -303,7 +305,7 @@ saf_from_paths<-function(pathsFile,groupBy=c("mRNA","gene"),block=c("exon","CDS"
 	rm(list=setdiff(ls(), "DF"))	
 	gc(reset=T)
 	
-	return (DF[order(DF$Chr,DF$GeneID,DF$Start),])
+	return (DF[order(DF$Chr,DF$GeneID,as.numeric(DF$Start)),])
 }
 
 
@@ -472,7 +474,7 @@ saf_from_gff3<-function(gffFile, outFile, forceOverwrite=FALSE, features=c("gene
 			safDF<-rbind(safDF,unique(saf_from_paths(PATHSfile,groupBy=c(featureList[i]),block=blockParam)))
 		}
 	}	
-	safDF<-unique(safDF[order(safDF[,2], safDF[,3], safDF[,4], safDF[,1] ),])
+	safDF<-unique(safDF[order(safDF[,2], as.numeric(safDF[,3]), -as.numeric(safDF[,4]), safDF[,1] ),])
 
 	utils::write.table(safDF,foutput,sep="\t",quote=FALSE,row.names = FALSE)
 
@@ -637,7 +639,7 @@ get_features<- function(inFile, includeCounts=FALSE, outFormat=c("tree", "data.f
 		myPairData<-pairsFile
 	} else if (is.vector(pairsFile) && is.character(pairsFile) && length(pairsFile)==1) {
 		if(file.exists(pairsFile)){
-			myPairData<-utils::read.table(pairsFile,header=T,sep="\t")
+			myPairData<-utils::read.table(pairsFile,header=T,sep="\t", stringsAsFactors=FALSE,colClasses=c("character","character","numeric"))
 		} else {
 			stop("Only Data frame of pairs or a valid path of pairs file are allowed")
 		}
@@ -645,6 +647,8 @@ get_features<- function(inFile, includeCounts=FALSE, outFormat=c("tree", "data.f
 	if(!all(c("ELEMENT","PARENT") %in% names(myPairData))){
 		stop("Missing ELEMENT or PARENT columns in pair data")
 	} 
+	
+	myPairData<-myPairData %>% dplyr::relocate(.data$PARENT, .before = .data$ELEMENT)
 	
 	myTree<-data.tree::as.Node(myPairData,mode="network") 
 	if(outFormat == "tree"){
@@ -1325,7 +1329,7 @@ saf_from_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), forceOv
 			safDF<-rbind(safDF,unique(saf_from_paths(PATHSfile,groupBy=featureParam,block=blockParam)))
 		}
 	}	
-	safDF<-unique(safDF[order(safDF[,2], safDF[,3], safDF[,4], safDF[,1] ),])
+	safDF<-unique(safDF[order(safDF[,2], as.numeric(safDF[,3]), -as.numeric(safDF[,4]), safDF[,1] ),])
 
 	utils::write.table(safDF,foutput,sep="\t",quote=FALSE,row.names = FALSE)
 
