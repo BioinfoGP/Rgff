@@ -1,3 +1,7 @@
+# Rgff 0.1.6
+
+* Disable scientific notation in file writing to avoid invalidly formatted feature coordinates
+
 # Rgff 0.1.5
 
 * Fixed bug when creating feature trees with a single branch or only level-zero nodes from GFF files

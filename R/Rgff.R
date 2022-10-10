@@ -68,8 +68,7 @@ get_pairs_from_gff3<-function(gffFile, outFile, forceOverwrite=FALSE){
 	colnames(countElems)<-c("ELEMENT","PARENT", "N")
 
 	DF<-rbind(countPairs,countElems)
-
-	utils::write.table(DF,file=foutput,col.names=TRUE,row.names=FALSE,quote=FALSE,sep="\t", append=FALSE)
+	withr::with_options(c(scipen = 999),utils::write.table(DF,file=foutput,col.names=TRUE,row.names=FALSE,quote=FALSE,sep="\t", append=FALSE))
 
 	rm(list=setdiff(ls(), "foutput"))	
 	gc(reset=T)
@@ -241,7 +240,7 @@ gff3_to_paths<-function(gffFile, outFile, forceOverwrite=FALSE){
 
 	message("Copying paths file") 
 	
-	utils::write.table(pathList,file=foutput,col.names=FALSE,quote=FALSE,sep="\t", row.names=FALSE,append=FALSE)
+	withr::with_options(c(scipen = 999),utils::write.table(pathList,file=foutput,col.names=FALSE,quote=FALSE,sep="\t", row.names=FALSE,append=FALSE))
 
 	rm(list=setdiff(ls(), "foutput"))	
 	gc(reset=T)
@@ -476,7 +475,7 @@ saf_from_gff3<-function(gffFile, outFile, forceOverwrite=FALSE, features=c("gene
 	}	
 	safDF<-unique(safDF[order(safDF[,2], as.numeric(safDF[,3]), -as.numeric(safDF[,4]), safDF[,1] ),])
 
-	utils::write.table(safDF,foutput,sep="\t",quote=FALSE,row.names = FALSE)
+	withr::with_options(c(scipen = 999),utils::write.table(safDF,foutput,sep="\t",quote=FALSE,row.names = FALSE))
 
 	rm(list=setdiff(ls(), "foutput"))	
 	gc(reset=T)
@@ -759,7 +758,7 @@ sort_gff3<-function(gffFile, outFile, forceOverwrite=FALSE){
 	if(length(gffHeader)> 0){
 		writeLines(gffHeader, fileConn)
 	}
-	utils::write.table(orderedGff, fileConn, append=TRUE, sep="\t", quote=F, row.names = FALSE, col.names=FALSE)
+	withr::with_options(c(scipen = 999),utils::write.table(orderedGff, fileConn, append=TRUE, sep="\t", quote=F, row.names = FALSE, col.names=FALSE))
 
 	close(fileConn)	
 
@@ -843,7 +842,7 @@ get_pairs_from_gtf<-function(gtfFile, outFile, forceOverwrite=FALSE){
 	# END CHECK FOR MISSING TRANSCRIPT OR GENE PARENTS
 
 	
-	utils::write.table(DF,file=foutput,col.names=TRUE,row.names=FALSE,quote=FALSE,sep="\t", append=FALSE)
+	withr::with_options(c(scipen = 999),utils::write.table(DF,file=foutput,col.names=TRUE,row.names=FALSE,quote=FALSE,sep="\t", append=FALSE))
 
 	rm(list=setdiff(ls(), "foutput"))	
 	gc(reset=T)
@@ -1005,7 +1004,7 @@ gtf_to_paths<-function(gtfFile, outFile, forceOverwrite=FALSE){
 	
 	# SORT AND WRITE TO FILE
 	orderedPathsData<- pathsData %>% dplyr::arrange(.data$seqname, .data$start, dplyr::desc(.data$end), .data$featureType)
-	utils::write.table(orderedPathsData[,c(1:5)], foutput, sep="\t", quote=F, row.names = FALSE, col.names=FALSE)
+	withr::with_options(c(scipen = 999),utils::write.table(orderedPathsData[,c(1:5)], foutput, sep="\t", quote=F, row.names = FALSE, col.names=FALSE))
 
 	
 
@@ -1090,7 +1089,7 @@ sort_gtf<-function(gtfFile, outFile, forceOverwrite=FALSE){
 	if(length(gtfHeader)> 0){
 		writeLines(gtfHeader, fileConn)
 	}
-	utils::write.table(orderedGTFdata, fileConn, append=TRUE, sep="\t", quote=F, row.names = FALSE, col.names=FALSE)
+	withr::with_options(c(scipen = 999),utils::write.table(orderedGTFdata, fileConn, append=TRUE, sep="\t", quote=F, row.names = FALSE, col.names=FALSE))
 
 	close(fileConn)	
 
@@ -1331,7 +1330,7 @@ saf_from_gff<-function(inFile, outFile, fileType=c("AUTO","GFF3","GTF"), forceOv
 	}	
 	safDF<-unique(safDF[order(safDF[,2], as.numeric(safDF[,3]), -as.numeric(safDF[,4]), safDF[,1] ),])
 
-	utils::write.table(safDF,foutput,sep="\t",quote=FALSE,row.names = FALSE)
+	withr::with_options(c(scipen = 999),utils::write.table(safDF,foutput,sep="\t",quote=FALSE,row.names = FALSE))
 
 	rm(list=setdiff(ls(), "foutput"))	
 	gc(reset=T)
@@ -1607,7 +1606,7 @@ gtf_to_gff3<-function(gtfFile, outFile, forceOverwrite=FALSE){
 	# Replace special characters
 	S4Vectors::mcols(myGTFdata)<-as.data.frame(S4Vectors::mcols(myGTFdata)) %>% dplyr::mutate(dplyr::across(names(S4Vectors::mcols(myGTFdata)),~ stringi::stri_replace_all_fixed(.x,c("=","&",","),c("%3D","%26","%2C"),vectorize_all=FALSE)))
 
-	rtracklayer::export.gff(myGTFdata,foutput)
+	withr::with_options(c(scipen = 999),rtracklayer::export.gff(myGTFdata,foutput))
 
 
 	rm(list=setdiff(ls(), "foutput"))	
