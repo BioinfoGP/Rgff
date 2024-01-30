@@ -17,6 +17,7 @@ License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.2
+URL: https://github.com/BioinfoGP/Rgff
 Imports:
     withr (>= 2.4.3), 
     rlang (>= 0.4.12), 
