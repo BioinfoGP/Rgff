@@ -123,8 +123,8 @@ gff3_to_paths<-function(gffFile, outFile, forceOverwrite=FALSE){
 	parentids<-rep(NA,nrow(myGFFdata))
 	elemids<-rep(NA,nrow(myGFFdata))
 
-	parentids[selected_parentid_lines]<-gsub(parentPatternFull,"\\2",myGFFdata[selected_parentid_lines,"attribute"],perl=T,ignore.case=T)
-	elemids[selected_elemid_lines]<-gsub(idPatternFull,"\\2",myGFFdata[selected_elemid_lines,"attribute"],perl=T,ignore.case=T)
+	parentids[selected_parentid_lines]<-gsub(parentPatternFull,"\\2",myGFFdata[selected_parentid_lines,"attribute"],ignore.case=T)
+	elemids[selected_elemid_lines]<-gsub(idPatternFull,"\\2",myGFFdata[selected_elemid_lines,"attribute"],ignore.case=T)
 
 	elemids[elemids == ""] <- NA
 
@@ -500,8 +500,10 @@ saf_from_gff3<-function(gffFile, outFile, forceOverwrite=FALSE, features=c("gene
 #' @export
 #'
 #' @examples
-#' test_gff3<-system.file("extdata", "AthSmall.gff3", package="Rgff")
-#' plot_features(test_gff3)
+#' if(requireNamespace("DiagrammeR")){
+#'     test_gff3<-system.file("extdata", "AthSmall.gff3", package="Rgff")
+#'     plot_features(test_gff3)
+#' }
 
 plot_features<- function(inFile, outFile, includeCounts=FALSE, fileType=c("AUTO","GFF3","GTF"), exportFormat=c("png","pdf","svg")){
 	if (!requireNamespace("DiagrammeR", quietly = TRUE)) {    
@@ -687,7 +689,7 @@ get_features<- function(inFile, includeCounts=FALSE, outFormat=c("tree", "data.f
 			return (qFeatures)
 		} else if(outFormat == "JSON"){
 			qFeaturesList <- as.list(as.data.frame(t(qFeatures)))
-			outText<-RJSONIO::toJSON(list(features=qFeaturesList),.escapeEscapes = FALSE)
+			outText<-jsonlite::toJSON(list(features=qFeaturesList),.escapeEscapes = FALSE)
 	
 			return(outText)
 		} 

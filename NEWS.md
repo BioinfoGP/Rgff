@@ -1,3 +1,8 @@
+# Rgff 0.1.7
+
+* Dependency of RJSONIO replaced by jsonlite
+* Fixed bug to prevent PCREerror in files with long descriptions
+
 # Rgff 0.1.6
 
 * Disable scientific notation in file writing to avoid invalidly formatted feature coordinates

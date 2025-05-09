@@ -32,6 +32,8 @@ exports an image of in the desired format ("png", "pdf" or "svg").
 Packages "DiagrammeR", "DiagrammeRsvg" and "rsvg" must be installed to use this function.
 }
 \examples{
-test_gff3<-system.file("extdata", "AthSmall.gff3", package="Rgff")
-plot_features(test_gff3)
+if(requireNamespace("DiagrammeR")){
+    test_gff3<-system.file("extdata", "AthSmall.gff3", package="Rgff")
+    plot_features(test_gff3)
+}
 }

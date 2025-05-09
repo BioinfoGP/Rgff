@@ -19,7 +19,7 @@ vignette: >
 # 0. About Rgff
 
 **Rgff** is a R package that provides some useful tools to retrieve statistical and hierarchical information contained in GFF files, either *general feature format* (GFF3) or *gene transfer format* (GTF) formatted files[^1]. GFF3 and GTF are the most widely used data formats for genomic annotations. 
-**Rgff** also holds some other interesting utilities, like convert the GTF files to the currently recommended GFF3 format, check if a GFF file is correctly formatted or generate SAF files from GFF files. If you are not familiar with GFF3/GTF formats, please access [this](https://www.ensembl.org/info/website/upload/gff.html), [this](http://gmod.org/wiki/GFF3) or [this](https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md) link for a detailed information.
+**Rgff** also holds some other interesting utilities, like convert the GTF files to the currently recommended GFF3 format, check if a GFF file is correctly formatted or generate SAF files from GFF files. If you are not familiar with GFF3/GTF formats, please access [this](https://www.ensembl.org/info/website/upload/gff.html), [this](https://gmod.org/wiki/GFF3) or [this](https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md) link for a detailed information.
 
 [^1]: <font size="2">*GTF format is in fact equivalent to GFF version 2, so we use "GFF" in this document as a global name to refer any of both formats, GTF or GFF3*</font>
 
@@ -144,11 +144,10 @@ You can obtain a more graphical view of the dependency structure of the features
 #install DiagrammeR if you do not have it installed (you need to do this only once)
 # install.packages("DiagrammeR")
 
-#load DiagrammeR
-library("DiagrammeR")
-
-#plot the features tree
-plot_features(gffFile1)
+if(requireNamespace("DiagrammeR")){
+    #plot the features tree
+    plot_features(gffFile1)
+}
 ```
 
 The number of occurrences of each feature type present in the file can be added to each feature name in the plot using the $includeCounts = TRUE$ parameter.
@@ -159,7 +158,9 @@ The number of occurrences of each feature type present in the file can be added 
 ##    and include the number of items of each feature
 ##=================================================================================##
 
-plot_features(gffFile1, includeCounts = TRUE)
+if(requireNamespace("DiagrammeR")){
+	plot_features(gffFile1, includeCounts = TRUE)
+}
 ```
 
 The plot with the hierarchical structure of features is saved into a file in $png$ by default. $pdf$ or $svg$ formats are also allowed by adding the chosen format in the $exportFormat$ parameter of **plot_features** function and setting the output file path.
@@ -170,8 +171,10 @@ The plot with the hierarchical structure of features is saved into a file in $pn
 ##=================================================================================##
 
 # get the plot in a PDF file
-outPlot1 <- file.path(tempdir(),"treeplot_from_gff3_file.pdf")
-plot_features(gffFile1, outPlot1, exportFormat = "pdf", includeCounts = FALSE)
+if(requireNamespace("DiagrammeR")){
+	outPlot1 <- file.path(tempdir(),"treeplot_from_gff3_file.pdf")
+	plot_features(gffFile1, outPlot1, exportFormat = "pdf", includeCounts = FALSE)
+}
 
 ```
 
@@ -183,13 +186,11 @@ For the $svg$ export format you will need to have the packages **DiagrammeRsvg**
 # install.packages("DiagrammeRsvg")
 # install.packages("rsvg")
 
-library("DiagrammeRsvg")
-library("rsvg")
-
-# get the plot in a svg file
-outPlot2 <- file.path(tempdir(),"outplot_from_gff3.svg")
-plot_features(gffFile1, outPlot2, exportFormat = "svg", includeCounts = TRUE)
-
+if(requireNamespace("DiagrammeRsvg") && requireNamespace("rsvg")){
+	# get the plot in a svg file
+	outPlot2 <- file.path(tempdir(),"outplot_from_gff3.svg")
+	plot_features(gffFile1, outPlot2, exportFormat = "svg", includeCounts = TRUE)
+}
 ```
 
 Besides as a tree, **Rgff** provides two more optional formats to output the feature structure:
@@ -342,14 +343,13 @@ head(read.table(gtfFile1,sep="\t"))
 
 ```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE}
 
-# convert the GTF format to GFF3 format
-gffFileConverted <- gtf_to_gff3(gtfFile1)
+if (requireNamespace("rtracklayer")){
+    # convert the GTF format to GFF3 format
+    gffFileConverted <- gtf_to_gff3(gtfFile1)
 
 
-```
-
-```{r message=FALSE, warning=FALSE}
-# show the results of the conversion
-head(read.table(gffFileConverted,sep="\t"))
+	# show the results of the conversion
+	head(read.table(gffFileConverted,sep="\t"))
+}
 
 ```
